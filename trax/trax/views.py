@@ -6,6 +6,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 
 from . import forms
+from . import exceptions
+from . import handlers
 # from . import handlers
 
 
@@ -20,12 +22,21 @@ def slash_command(request):
         'response_type': 'ephemeral'
     }
     if not form.is_valid():
-        data['text'] = handlers.HelpHandler().response_text(request, action=None, arguments=None)
+        data['text'] = handlers.HelpHandler().get_response_content(
+            request=request,
+            action='help',
+            arguments='',
+            context={})
         return JsonResponse(data)
 
     cd = form.cleaned_data
     handler,  arguments = cd['handler'], cd['arguments']
-    result = handler.handle(arguments, user=cd['user'])
+    try:
+        result = handler.handle(arguments, user=cd['user'])
+    except exceptions.HandleError as e:
+        data['text'] = str(e)
+        return JsonResponse(data)
+
     data['text'] = handler.get_response_content(
         request=request,
         action=cd['action'],

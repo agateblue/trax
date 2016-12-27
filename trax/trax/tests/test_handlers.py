@@ -16,7 +16,7 @@ class TestForms(TestCase):
         arguments = 'this is my timer'
 
         now = timezone.now()
-        with unittest.mock.patch('django.utils.timezone', return_value=now):
+        with unittest.mock.patch('django.utils.timezone.now', return_value=now):
             result = handler.handle(arguments, user=self.user)
 
         group = result['timer_group']
@@ -27,7 +27,7 @@ class TestForms(TestCase):
 
         timer = group.timers.first()
 
-        self.assertGreater(timer.start_date, now)
+        self.assertGreaterEqual(timer.start_date, now)
         self.assertEqual(timer.end_date, None)
 
     def test_stop_timer(self):

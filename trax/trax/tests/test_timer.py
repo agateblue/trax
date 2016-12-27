@@ -1,5 +1,6 @@
 import unittest
 import json
+import datetime
 from test_plus.test import TestCase
 
 from trax.trax import models
@@ -15,7 +16,7 @@ class TestTimer(TestCase):
 
     def test_can_start_timer_group(self):
         now = timezone.now()
-        with unittest.mock.patch('django.utils.timezone', return_value=now):
+        with unittest.mock.patch('django.utils.timezone.now', return_value=now):
             group = models.TimerGroup.objects.start('Test 2', user=self.user)
 
         self.assertEqual(group.name, 'Test 2')
@@ -24,7 +25,7 @@ class TestTimer(TestCase):
 
         timer = group.timers.first()
 
-        self.assertGreater(timer.start_date, now)
+        self.assertGreaterEqual(timer.start_date, now)
         self.assertEqual(timer.end_date, None)
 
     def test_can_stop_timer_group(self):
@@ -43,6 +44,16 @@ class TestTimer(TestCase):
 
         self.assertGreater(timer1.end_date, timer1.start_date)
         self.assertGreater(timer2.start_date, timer1.end_date)
+
+    def test_can_get_group_today_duration(self):
+        now = timezone.now()
+        delta = datetime.timedelta(hours=1)
+        with unittest.mock.patch('django.utils.timezone.now', return_value=now - delta):
+            group = models.TimerGroup.objects.start('Test 2', user=self.user)
+
+        self.assertEqual(group.creation_date, now - delta)
+        with unittest.mock.patch('django.utils.timezone.now', return_value=now):
+            self.assertEqual(group.today_duration, delta)
 
     def test_can_start_timer_via_api_endpoint(self):
         payload = {

@@ -5,6 +5,7 @@ from django.utils import timezone
 from django.db.models import Q
 
 from . import models
+from . import exceptions
 
 
 class Handler(object):
@@ -27,7 +28,7 @@ class Handler(object):
         return context
 
     def get_example(self):
-        return '/<trigger> {1}'.format(self.entrypoint)
+        return '/<trigger> {0}'.format(self.entrypoint)
 
 
 class HelpHandler(Handler):
@@ -47,6 +48,9 @@ class StartTimerHandler(Handler):
     description = 'Start a timer'
 
     def handle(self, arguments, user):
+        if not arguments:
+            # missing time name
+            raise exceptions.HandleError('Please provide a valid name')
         return {
             'timer_group': models.TimerGroup.objects.start(
                 arguments, user=user

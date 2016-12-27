@@ -1,3 +1,5 @@
+import datetime
+
 from django.db import models
 from django.utils import timezone
 from django.forms import ValidationError
@@ -43,7 +45,7 @@ class TimerGroupManager(models.Manager):
 class TimerGroup(models.Model):
     name = models.CharField(max_length=150)
     slug = models.CharField(max_length=150)
-    creation_date = models.DateTimeField(default=timezone.now)
+    creation_date = models.DateTimeField(default=lambda: timezone.now())
     description = models.TextField()
     user = models.ForeignKey(User, related_name='timer_groups')
 
@@ -52,6 +54,15 @@ class TimerGroup(models.Model):
     class Meta:
         unique_together = ('slug', 'user')
         ordering = ('-creation_date',)
+
+    @property
+    def today_duration(self):
+        today = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        return self.timers.all().since(today).duration()
+
+    @property
+    def current_timer(self):
+        return self.timers.running().order_by('-start_date').first()
 
     @property
     def is_started(self):
@@ -71,13 +82,31 @@ class TimerQuerySet(models.QuerySet):
     def running(self):
         return self.filter(end_date__isnull=True)
 
+    def since(self, date):
+        return self.filter(start_date__gte=date)
+
+    def duration(self):
+        duration = 0
+        for timer in self.all():
+            duration += timer.duration
+
+        return datetime.timedelta(seconds=duration)
+
 
 class Timer(models.Model):
-    start_date = models.DateTimeField(default=timezone.now)
+    start_date = models.DateTimeField(default=lambda: timezone.now())
     end_date = models.DateTimeField(null=True, blank=True)
     group = models.ForeignKey(TimerGroup, related_name='timers')
 
     objects = TimerQuerySet.as_manager()
+
+    class Meta:
+        ordering = ('-start_date',)
+
+    @property
+    def duration(self):
+        end = self.end_date or timezone.now()
+        return (end - self.start_date).seconds
 
     @property
     def is_started(self):

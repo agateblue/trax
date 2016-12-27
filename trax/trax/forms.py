@@ -49,4 +49,4 @@ class SlashCommandForm(forms.Form):
         try:
             return [h for h in handlers.handlers if h.valid_for_action(action)][0]
         except IndexError:
-            raise ValidationError('No handler found for action {0}'.format(action))
+            raise forms.ValidationError('No handler found for action {0}'.format(action))
