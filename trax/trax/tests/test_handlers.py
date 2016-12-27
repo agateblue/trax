@@ -49,3 +49,13 @@ class TestForms(TestCase):
         result = handler.handle('', user=self.user)
         self.assertEqual(len(result['timer_groups']), 1)
         self.assertEqual(result['timer_groups'].first(), group)
+
+    def test_stats_handler(self):
+        handler = handlers.handlers_by_key['stats']
+        group = models.TimerGroup.objects.start('Test 1', user=self.user)
+        group = models.TimerGroup.objects.start('Test 2', user=self.user)
+        group = models.TimerGroup.objects.start('Test 3', user=self.user)
+
+        result = handler.handle('', user=self.user)
+        print(result)
+        raise

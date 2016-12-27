@@ -36,10 +36,17 @@ def slash_command(request):
     except exceptions.HandleError as e:
         data['text'] = str(e)
         return JsonResponse(data)
-
+    data = {
+        'response_type': handler.response_type
+    }
     data['text'] = handler.get_response_content(
         request=request,
         action=cd['action'],
         arguments=arguments,
         context=result,)
+
+    if data['response_type'] == 'in_channel':
+        data['text'] = '*{0} invoked command "{1} {2}"*'.format(
+            cd['user'].username, cd['command'], cd['text']
+        ) + data['text']
     return JsonResponse(data)

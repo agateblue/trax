@@ -1,3 +1,7 @@
+import datetime
+import dateparser
+import pytz
+
 from django.template import loader, Context
 from django.conf import settings
 from django.db.models.functions import Coalesce
@@ -9,6 +13,8 @@ from . import exceptions
 
 
 class Handler(object):
+    response_type = 'ephemeral'
+
     def valid_for_action(self, action):
         return action == self.entrypoint or action in self.keywords.split(' ')
 
@@ -90,11 +96,68 @@ class ListTimersHandler(Handler):
         }
 
 
+class StatsHandler(Handler):
+    entrypoint = 'stats'
+    keywords = 'report reports stat'
+    description = 'Display your personal time tracking statistics'
+    response_type = 'in_channel'
+
+    def get_example(self):
+        example = super().get_example()
+        example += ' two weeks ago'
+        return example
+
+    def handle(self, arguments, user):
+        end = (
+            dateparser.parse(arguments) or
+            timezone.now().replace(
+                hour=23, minute=59, second=59, microsecond=9999))
+        r = 7
+        tz = pytz.timezone(settings.TIME_ZONE)
+        end = end.replace(tzinfo=tz)
+        start = (end - datetime.timedelta(days=r)).replace(hour=0, minute=0, second=0, microsecond=0)
+        intervals = [
+            (start + datetime.timedelta(days=i), start + datetime.timedelta(days=i + 1))
+            for i in range(1, r + 1)
+        ]
+        data = {
+            'headers': [i[0] for i in intervals],
+            'rows': [],
+            'start_date': start.date(),
+            'end_date': end.date(),
+            'interval_totals': [],
+        }
+        available_groups = user.timer_groups.since(start, end).order_by('name')
+        for group in available_groups:
+            row_data = {
+                'label': group.name,
+                'values': [],
+                'total': None,
+            }
+            for s, e in intervals:
+                row_data['values'].append(group.get_duration(s, e))
+
+            row_data['total'] = datetime.timedelta(seconds=sum([v.seconds for v in row_data['values']]))
+            data['rows'].append(row_data)
+
+        for i1, v in enumerate(data['headers']):
+            seconds = 0
+            for i2, group in enumerate(available_groups):
+                seconds += data['rows'][i2]['values'][i1].seconds
+
+            data['interval_totals'].append(datetime.timedelta(seconds=seconds))
+
+        data['total'] = datetime.timedelta(seconds=sum([v.seconds for v in data['interval_totals']]))
+
+        return data
+
+
 handlers = [
     HelpHandler(),
     StartTimerHandler(),
     StopTimersHandler(),
     ListTimersHandler(),
+    StatsHandler(),
 ]
 
 handlers_by_key = {

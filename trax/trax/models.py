@@ -12,8 +12,12 @@ class TimerGroupQuerySet(models.QuerySet):
     def running(self):
         return self.filter(timers__end_date__isnull=True)
 
-    def since(self, date):
-        return self.filter(timers__start_date__gte=date)
+    def since(self, start_date, end_date=None):
+        qs = self.filter(timers__start_date__gte=start_date)
+        if end_date:
+            q = models.Q(timers__end_date__lt=end_date) | models.Q(timers__end_date__isnull=True)
+            qs = qs.filter(q).filter(timers__start_date__lt=end_date)
+        return qs.distinct()
 
 
 class TimerGroupManager(models.Manager):
@@ -58,7 +62,10 @@ class TimerGroup(models.Model):
     @property
     def today_duration(self):
         today = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        return self.timers.all().since(today).duration()
+        return self.get_duration(today)
+
+    def get_duration(self, start, end=None):
+        return self.timers.all().since(start, end).duration()
 
     @property
     def current_timer(self):
@@ -82,8 +89,12 @@ class TimerQuerySet(models.QuerySet):
     def running(self):
         return self.filter(end_date__isnull=True)
 
-    def since(self, date):
-        return self.filter(start_date__gte=date)
+    def since(self, start_date, end_date=None):
+        qs = self.filter(start_date__gte=start_date)
+        if end_date:
+            q = models.Q(end_date__lt=end_date) | models.Q(end_date__isnull=True)
+            qs = qs.filter(q).filter(start_date__lt=end_date)
+        return qs.distinct()
 
     def duration(self):
         duration = 0
