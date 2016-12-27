@@ -23,7 +23,7 @@ services:
     environment:
       - POSTGRES_USER=trax
       - USE_DOCKER=yes
-      - SLASH_COMMAND_TOKEN=x66qpwutqjrzfyriuidkwsdf6w
+    env_file: .env
     volumes:
       - .:/app
     ports:

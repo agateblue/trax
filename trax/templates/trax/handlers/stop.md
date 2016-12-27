@@ -1,1 +1,1 @@
-Timers were successfully stoped.
+Timers were successfully stopped.

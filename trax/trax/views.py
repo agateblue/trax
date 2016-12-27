@@ -46,7 +46,7 @@ def slash_command(request):
         context=result,)
 
     if data['response_type'] == 'in_channel':
-        data['text'] = '*{0} invoked command "{1} {2}"*'.format(
+        data['text'] = '*{0} invoked command "{1} {2}"*\n\n'.format(
             cd['user'].username, cd['command'], cd['text']
         ) + data['text']
     return JsonResponse(data)
