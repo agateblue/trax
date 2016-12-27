@@ -14,9 +14,7 @@ Simple time tracking server designed to work with Mattermost / Slack
 Deployment
 ----------
 
-Deployment is supported using Docker and docker-compose exclusively:
-
-..code-block: bash
+Deployment is supported using Docker and docker-compose exclusively::
 
     git clone https://github.com/EliotBerriot/trax.git
     cd trax
