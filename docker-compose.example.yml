@@ -29,7 +29,7 @@ services:
       - django
 
     ports:
-      - "0.0.0.0:80:80"
+      - "0.0.0.0:8079:80"
 
 
   redis:

@@ -21,6 +21,12 @@ Deployment is supported using Docker and docker-compose exclusively::
 
     cp env.example .env
     # edit the .env file, especially the SLASH_COMMAND_TOKEN variable
+    # and the DJANGO_ALLOWED_HOSTS one
+    nano .env
+
+    cp docker-compose.example.yml docker-compose.yml
+    # customize any configuration in the docker compose file
+    nano docker-compose.yml
 
     docker-compose build
     docker-compose up -d
@@ -28,4 +34,8 @@ Deployment is supported using Docker and docker-compose exclusively::
     # create tables in the database
     docker-compose run django python manage.py migrate
 
-You can use the docker-compose.override.yml file to tweak the containers behaviour.
+After that, your trax instance should be available at ``http://yourip/``. The URL to use
+for the slash command configuration is ``http://hourip/trax/slash``
+
+You can use the docker-compose.override.example.yml file to tweak the containers behaviour (after renaming it to
+docker-compose.override.yml).
