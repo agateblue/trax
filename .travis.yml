@@ -3,9 +3,10 @@ services:
   - docker
 before_install:
   - docker-compose -f dev.yml build
+  - cp env.example .env
 script:
   - docker-compose -f dev.yml run django pytest
- 
+
 language: python
 python:
 - "3.5"
