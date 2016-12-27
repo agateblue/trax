@@ -7,7 +7,7 @@ Simple time tracking server designed to work with Mattermost / Slack
      :target: https://github.com/pydanny/cookiecutter-django/
      :alt: Built with Cookiecutter Django
 
- .. image:: ./docs/trax.gif
+.. image:: ./docs/trax.gif
 
 :License: MIT
 
@@ -15,6 +15,8 @@ Deployment
 ----------
 
 Deployment is supported using Docker and docker-compose exclusively:
+
+..code-block: bash
 
     git clone https://github.com/EliotBerriot/trax.git
     cd trax
