@@ -65,7 +65,7 @@ class StartTimerHandler(Handler):
 
     def get_example(self):
         example = super().get_example()
-        example += 'my great timer'
+        example += ' my great timer'
         return example
 
 

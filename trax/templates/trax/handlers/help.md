@@ -1,4 +1,4 @@
-Trax is a small tool to help with tracking your time whithout hassle.
+Trax is a small tool to help tracking your time whithout hassle.
 
 Available commands:
 
