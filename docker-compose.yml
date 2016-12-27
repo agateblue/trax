@@ -35,25 +35,24 @@ services:
   redis:
     image: redis:latest
 
-  celeryworker:
-    build:
-      context: .
-      dockerfile: ./compose/django/Dockerfile
-    user: django
-    env_file: .env
-    depends_on:
-     - postgres
-     - redis
-    command: celery -A trax.taskapp worker -l INFO
-
-  celerybeat:
-    build:
-      context: .
-      dockerfile: ./compose/django/Dockerfile
-    user: django
-    env_file: .env
-    depends_on:
-      - postgres
-      - redis
-    command: celery -A trax.taskapp beat -l INFO
-
+  # celeryworker:
+  #   build:
+  #     context: .
+  #     dockerfile: ./compose/django/Dockerfile
+  #   user: django
+  #   env_file: .env
+  #   depends_on:
+  #    - postgres
+  #    - redis
+  #   command: celery -A trax.taskapp worker -l INFO
+  #
+  # celerybeat:
+  #   build:
+  #     context: .
+  #     dockerfile: ./compose/django/Dockerfile
+  #   user: django
+  #   env_file: .env
+  #   depends_on:
+  #     - postgres
+  #     - redis
+  #   command: celery -A trax.taskapp beat -l INFO
