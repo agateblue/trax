@@ -28,7 +28,7 @@ class Handler(object):
         context['arguments'] = arguments
 
         context = self.get_additional_context(context)
-        return t.render(Context(context)).rstrip()
+        return t.render(Context(context)).strip()
 
     def get_additional_context(self, context):
         return context
