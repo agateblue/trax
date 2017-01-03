@@ -34,7 +34,13 @@ def slash_command(request):
     try:
         result = handler.handle(arguments, user=cd['user'])
     except exceptions.HandleError as e:
-        data['text'] = str(e)
+        data['text'] = handler.get_exception_response_content(
+            exception=e,
+            user=cd['user'],
+            request=request,
+            action=cd['action'],
+            arguments=arguments
+        )
         return JsonResponse(data)
     data = {
         'response_type': handler.response_type

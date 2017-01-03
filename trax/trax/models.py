@@ -19,6 +19,15 @@ class TimerGroupQuerySet(models.QuerySet):
             qs = qs.filter(q).filter(timers__start_date__lt=end_date)
         return qs.distinct()
 
+    def order_by_usage(self):
+        return self.annotate(c=models.Count('timers')).order_by('-c')
+
+    def with_position(self):
+        qs = list(self.all())
+        for i, e in enumerate(qs):
+            setattr(e, 'queryset_position', i + 1)
+        return qs
+
 
 class TimerGroupManager(models.Manager):
 

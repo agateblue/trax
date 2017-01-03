@@ -30,6 +30,18 @@ class TestForms(TestCase):
         self.assertGreaterEqual(timer.start_date, now)
         self.assertEqual(timer.end_date, None)
 
+    def test_can_start_using_an_integer_shortcut(self):
+        handler = handlers.handlers_by_key['start']
+        group1 = models.TimerGroup.objects.start('Test 1', user=self.user)
+        group1 = models.TimerGroup.objects.start('Test 1', user=self.user)
+        group2 = models.TimerGroup.objects.start('Test 2', user=self.user)
+
+        arguments = '1'
+        result = handler.handle(arguments, user=self.user)
+
+        self.assertEqual(result['timer_group'], group1)
+        self.assertTrue(group1.is_started)
+
     def test_stop_timer(self):
         handler = handlers.handlers_by_key['stop']
         group = models.TimerGroup.objects.start('Test 2', user=self.user)
@@ -52,11 +64,15 @@ class TestForms(TestCase):
 
     def test_stats_handler(self):
         handler = handlers.handlers_by_key['stats']
-        group = models.TimerGroup.objects.start('Test 1', user=self.user)
-        group = models.TimerGroup.objects.start('Test 2', user=self.user)
-        group = models.TimerGroup.objects.start('Test 3', user=self.user)
+        group1 = models.TimerGroup.objects.start('Test 1', user=self.user)
+        group2 = models.TimerGroup.objects.start('Test 2', user=self.user)
+        empty_group = models.TimerGroup.objects.create(
+            name='Empty', slug='empty', user=self.user)
 
         result = handler.handle('', user=self.user)
+        self.assertEqual(len(result['rows']), 2)
+        self.assertEqual(result['rows'][0]['label'], 'Test 1')
+        self.assertEqual(result['rows'][1]['label'], 'Test 2')
 
     def test_restart_handler(self):
         group1 = models.TimerGroup.objects.start('Test 1', user=self.user)

@@ -30,6 +30,34 @@ class Handler(object):
         context = self.get_additional_context(context)
         return t.render(Context(context)).strip()
 
+    def get_exception_response_content(
+            self,
+            exception,
+            request,
+            action,
+            user,
+            arguments):
+        """
+        Called when an exception in triggered in handle
+        """
+
+        t = loader.select_template([
+            'trax/handlers/{0}_error_{1}.md'.format(
+                self.entrypoint, exception.err_code),
+            'trax/handlers/{0}_error.md'.format(self.entrypoint),
+            'trax/handlers/error_{0}.md'.format(exception.err_code),
+            'trax/handlers/error.md',
+        ])
+        context = {}
+        context['request'] = request
+        context['action'] = action
+        context['user'] = user
+        context['arguments'] = arguments
+        context['exception'] = exception
+
+        context = self.get_additional_context(context)
+        return t.render(Context(context)).strip()
+
     def get_additional_context(self, context):
         return context
 
@@ -56,7 +84,23 @@ class StartTimerHandler(Handler):
     def handle(self, arguments, user):
         if not arguments:
             # missing time name
-            raise exceptions.HandleError('Please provide a valid name')
+            raise exceptions.HandleError('Please provide a valid name', err_code='missing_arg')
+
+        try:
+            # we try to fetch the timer group using a shortcut instead of name
+            shortcut = int(arguments)
+            existing = user.timer_groups.order_by_usage().with_position()
+            for t in existing:
+                if shortcut != t.queryset_position:
+                    continue
+                t.start()
+                return {
+                    'timer_group': t,
+                }
+            raise exceptions.HandleError('The shortcut you provided does not match any timer', err_code='invalid_arg')
+        except ValueError:
+            pass
+
         return {
             'timer_group': models.TimerGroup.objects.start(
                 arguments, user=user
@@ -119,7 +163,7 @@ class RestartTimersHandler(Handler):
 
 class StatsHandler(Handler):
     entrypoint = 'stats'
-    keywords = 'report reports stat'
+    keywords = 'report reports stat rep'
     description = 'Display your personal time tracking statistics'
     response_type = 'in_channel'
 
