@@ -2,11 +2,12 @@ import datetime
 import dateparser
 import pytz
 
-from django.template import loader, Context
+from django.template import loader, Context, TemplateDoesNotExist
 from django.conf import settings
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.db.models import Q
+from django.utils import safestring
 
 from . import models
 from . import exceptions
@@ -21,14 +22,27 @@ class Handler(object):
     def handle(self, arguments, user):
         return {}
 
-    def get_response_content(self, request, action, arguments, context):
+    def get_help_content(self, user):
+        try:
+            t = loader.get_template('trax/handlers/{0}_help.md'.format(self.entrypoint))
+        except TemplateDoesNotExist:
+            return self.description
+
+        context = {}
+        context['user'] = user
+        context['handler'] = self
+        return safestring.mark_safe(t.render(Context(context)).strip())
+
+    def get_response_content(
+            self, request, action, arguments, context, user=None):
         t = loader.get_template('trax/handlers/{0}.md'.format(self.entrypoint))
         context['request'] = request
+        context['user'] = user
         context['action'] = action
         context['arguments'] = arguments
 
         context = self.get_additional_context(context)
-        return t.render(Context(context)).strip()
+        return safestring.mark_safe(t.render(Context(context)).strip())
 
     def get_exception_response_content(
             self,
@@ -56,7 +70,7 @@ class Handler(object):
         context['exception'] = exception
 
         context = self.get_additional_context(context)
-        return t.render(Context(context)).strip()
+        return safestring.mark_safe(t.render(Context(context)).strip())
 
     def get_additional_context(self, context):
         return context
@@ -67,13 +81,31 @@ class Handler(object):
 
 class HelpHandler(Handler):
     entrypoint = 'help'
-    keywords = '?'
+    keywords = '? h'
     description = 'Display the list of commands'
 
     def get_additional_context(self, context):
         context = super().get_additional_context(context)
         context['handlers'] = handlers
         return context
+
+    def handle(self, arguments, user):
+        if not arguments:
+            # root help
+            return {}
+
+        try:
+            handler = [h for h in handlers if h.valid_for_action(arguments)][0]
+        except IndexError:
+            raise HandleError(
+                '`{0}` does not match any command'.format(arguments),
+                err_code='invalid_arg',
+            )
+
+        help_content = handler.get_help_content(user)
+        return {
+            'help_content': help_content,
+        }
 
 
 class StartTimerHandler(Handler):
@@ -133,17 +165,24 @@ class ListTimersHandler(Handler):
     description = 'Display today\'s timers'
 
     def handle(self, arguments, user):
-        today = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        qs = user.timer_groups.since(today)
+        end = (
+            dateparser.parse(arguments) or
+            timezone.now().replace(
+                hour=23, minute=59, second=59, microsecond=9999))
+        tz = pytz.timezone(settings.TIME_ZONE)
+        end = end.replace(tzinfo=tz)
+        start = end.replace(hour=0, minute=0, second=0, microsecond=0)
+        qs = user.timer_groups.since(start, end)
         return {
             'timer_groups': qs,
+            'date': start.date(),
         }
 
 
 class RestartTimersHandler(Handler):
     entrypoint = 'restart'
     keywords = 're res'
-    description = 'Restart the previously stopped timer'
+    description = 'Restart the last stopped timer'
 
     def handle(self, arguments, user):
         timer = (

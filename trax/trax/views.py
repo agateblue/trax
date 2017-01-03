@@ -47,6 +47,7 @@ def slash_command(request):
     }
     data['text'] = handler.get_response_content(
         request=request,
+        user=cd['user'],
         action=cd['action'],
         arguments=arguments,
         context=result,)
