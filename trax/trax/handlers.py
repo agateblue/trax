@@ -96,6 +96,27 @@ class ListTimersHandler(Handler):
         }
 
 
+class RestartTimersHandler(Handler):
+    entrypoint = 'restart'
+    keywords = 're res'
+    description = 'Restart the previously stopped timer'
+
+    def handle(self, arguments, user):
+        timer = (
+            models.Timer.objects.filter(group__user=user)
+                                .order_by('-start_date').first()
+        )
+        if not timer:
+            return {
+                'timer_group': None
+            }
+
+        timer.group.start()
+        return {
+            'timer_group': timer.group
+        }
+
+
 class StatsHandler(Handler):
     entrypoint = 'stats'
     keywords = 'report reports stat'
@@ -157,6 +178,7 @@ handlers = [
     StartTimerHandler(),
     StopTimersHandler(),
     ListTimersHandler(),
+    RestartTimersHandler(),
     StatsHandler(),
 ]
 

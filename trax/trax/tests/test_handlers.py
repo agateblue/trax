@@ -57,5 +57,14 @@ class TestForms(TestCase):
         group = models.TimerGroup.objects.start('Test 3', user=self.user)
 
         result = handler.handle('', user=self.user)
-        print(result)
-        raise
+
+    def test_restart_handler(self):
+        group1 = models.TimerGroup.objects.start('Test 1', user=self.user)
+        group2 = models.TimerGroup.objects.start('Test 2', user=self.user)
+        group2.stop()
+
+        handler = handlers.handlers_by_key['restart']
+        result = handler.handle('', user=self.user)
+
+        group2.refresh_from_db()
+        self.assertTrue(group2.is_started)
