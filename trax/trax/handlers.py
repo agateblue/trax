@@ -167,11 +167,12 @@ class ListTimersHandler(Handler):
     def handle(self, arguments, user):
         end = (
             dateparser.parse(arguments) or
-            timezone.now().replace(
-                hour=23, minute=59, second=59, microsecond=9999))
+            timezone.now())
         tz = pytz.timezone(settings.TIME_ZONE)
         end = end.replace(tzinfo=tz)
+        end = end.replace(hour=23, minute=59, second=59, microsecond=9999)
         start = end.replace(hour=0, minute=0, second=0, microsecond=0)
+        print(start, end)
         qs = user.timer_groups.since(start, end)
         return {
             'timer_groups': qs,
@@ -214,11 +215,11 @@ class StatsHandler(Handler):
     def handle(self, arguments, user):
         end = (
             dateparser.parse(arguments) or
-            timezone.now().replace(
-                hour=23, minute=59, second=59, microsecond=9999))
+            timezone.now())
         r = 7
         tz = pytz.timezone(settings.TIME_ZONE)
         end = end.replace(tzinfo=tz)
+        end = end.replace(hour=23, minute=59, second=59, microsecond=9999)
         start = (end - datetime.timedelta(days=r)).replace(hour=0, minute=0, second=0, microsecond=0)
         intervals = [
             (start + datetime.timedelta(days=i), start + datetime.timedelta(days=i + 1))
