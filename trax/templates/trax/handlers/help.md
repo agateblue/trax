@@ -2,7 +2,7 @@
 
 Available commands:
 
-| Commande | Description | Example |
+| Command | Description | Example |
 | -------- | ----------- | ------- |{% for handler in handlers %}
 | {{ handler.entrypoint }} | {{ handler.description }} | {{ handler.get_example }} |{% endfor %}
 {% endif %}

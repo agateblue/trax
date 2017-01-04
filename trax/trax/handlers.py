@@ -8,6 +8,9 @@ from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.db.models import Q
 from django.utils import safestring
+from dynamic_preferences.exceptions import NotFoundInRegistry
+from dynamic_preferences.serializers import SerializationError as DPSerializationError
+from dynamic_preferences.registries import user_preferences_registry
 
 from . import models
 from . import exceptions
@@ -97,7 +100,7 @@ class HelpHandler(Handler):
         try:
             handler = [h for h in handlers if h.valid_for_action(arguments)][0]
         except IndexError:
-            raise HandleError(
+            raise exceptions.HandleError(
                 '`{0}` does not match any command'.format(arguments),
                 code='invalid_arg',
             )
@@ -156,7 +159,7 @@ class StopTimersHandler(Handler):
         end = (
             dateparser.parse(arguments) or
             timezone.now())
-        tz = pytz.timezone(settings.TIME_ZONE)
+        tz = pytz.timezone(user.preferences['global__timezone'])
         try:
             end = tz.localize(end)
         except ValueError:
@@ -181,7 +184,7 @@ class ListTimersHandler(Handler):
         end = (
             dateparser.parse(arguments) or
             timezone.now())
-        tz = pytz.timezone(settings.TIME_ZONE)
+        tz = pytz.timezone(user.preferences['global__timezone'])
         try:
             end = tz.localize(end)
         except ValueError:
@@ -218,6 +221,55 @@ class RestartTimersHandler(Handler):
         }
 
 
+class ConfigHandler(Handler):
+    entrypoint = 'config'
+    keywords = 'conf c settings options'
+    description = 'Access and update your settings'
+
+    def handle(self, arguments, user):
+        s = arguments.split(' ')
+        setting = s[0]
+        new_value = None
+        if len(s) > 1:
+            # a new value is provided
+            new_value = ' '.join(s[1:])
+        if not setting:
+            settings = user.preferences
+            available_settings = [
+                (conf, settings['global__{0}'.format(conf.name)])
+                for conf in user_preferences_registry['global'].values()
+            ]
+            return {
+                'setting': None,
+                'available_settings': available_settings,
+            }
+
+        pref = 'global__{0}'.format(setting)
+
+        try:
+            value = user.preferences[pref]
+        except NotFoundInRegistry:
+            raise exceptions.HandleError('{0} is not a valid setting'.format(setting), code='invalid_arg')
+
+        if new_value:
+            pref_obj = user_preferences_registry.get(pref)
+
+            try:
+                cleaned = pref_obj.field.clean(new_value)
+                user.preferences[pref] = cleaned
+            except DPSerializationError:
+                raise exceptions.HandleError(
+                    '{0} is not a valid value for setting {1}'.format(new_value, setting),
+                    code='invalid_arg')
+
+        return {
+            'setting': setting,
+            'old_value': value,
+            'new_value': new_value,
+            'updated': new_value is not None,
+        }
+
+
 class StatsHandler(Handler):
     entrypoint = 'stats'
     keywords = 'report reports stat rep'
@@ -234,7 +286,7 @@ class StatsHandler(Handler):
             dateparser.parse(arguments) or
             timezone.now())
         r = 7
-        tz = pytz.timezone(settings.TIME_ZONE)
+        tz = pytz.timezone(user.preferences['global__timezone'])
         try:
             end = tz.localize(end)
         except ValueError:
@@ -285,6 +337,7 @@ handlers = [
     ListTimersHandler(),
     RestartTimersHandler(),
     StatsHandler(),
+    ConfigHandler(),
 ]
 
 handlers_by_key = {

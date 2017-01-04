@@ -105,3 +105,15 @@ class TestForms(TestCase):
 
         group2.refresh_from_db()
         self.assertTrue(group2.is_started)
+
+    def test_config_handler(self):
+        self.user.delete()
+        with self.settings(TIME_ZONE='Europe/Berlin'):
+            user = self.make_user()
+            tz = user.preferences['global__timezone']
+        self.assertEqual(tz, 'Europe/Berlin')
+
+        handler = handlers.handlers_by_key['config']
+        result = handler.handle('timezone Europe/Paris', user=user)
+
+        self.assertEqual(user.preferences['global__timezone'], 'Europe/Paris')
