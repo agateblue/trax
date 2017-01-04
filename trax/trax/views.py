@@ -4,6 +4,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
+from django.db import transaction
 
 from . import forms
 from . import exceptions
@@ -13,6 +14,7 @@ from . import handlers
 
 @csrf_exempt
 @require_http_methods(["POST"])
+@transaction.atomic
 def slash_command(request):
     if settings.SLASH_COMMAND_TOKEN != request.POST['token']:
         return JsonResponse({'text': 'Invalid token'}, status=403)
@@ -33,7 +35,7 @@ def slash_command(request):
     handler,  arguments = cd['handler'], cd['arguments']
     try:
         result = handler.handle(arguments, user=cd['user'])
-    except exceptions.HandleError as e:
+    except (exceptions.HandleError, exceptions.ValidationError) as e:
         data['text'] = handler.get_exception_response_content(
             exception=e,
             user=cd['user'],

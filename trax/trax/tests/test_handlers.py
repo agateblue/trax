@@ -1,4 +1,6 @@
 import unittest
+import datetime
+
 from test_plus.test import TestCase
 from django.conf import settings
 from django.utils import timezone
@@ -53,6 +55,25 @@ class TestForms(TestCase):
 
         self.assertFalse(group.is_started)
         self.assertFalse(timer.is_started)
+
+    def test_can_stop_timer_in_the_past(self):
+        handler = handlers.handlers_by_key['stop']
+        now = timezone.now().replace(microsecond=0)
+        start = now - datetime.timedelta(hours=2)
+        with unittest.mock.patch('django.utils.timezone.now', return_value=start):
+            group = models.TimerGroup.objects.start('Test 2', user=self.user)
+
+        timer = group.current_timer
+
+        self.assertEqual(timer.start_date, start)
+
+        now = start + datetime.timedelta(hours=2)
+        with unittest.mock.patch('django.utils.timezone.now', return_value=now):
+            result = handler.handle('one hour ago', user=self.user)
+
+        timer.refresh_from_db()
+        difference = timer.end_date - (timer.start_date + datetime.timedelta(hours=1))
+        self.assertEqual(difference.seconds, 0)
 
     def test_list_timers(self):
         handler = handlers.handlers_by_key['list']

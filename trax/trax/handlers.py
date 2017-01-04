@@ -57,9 +57,9 @@ class Handler(object):
 
         t = loader.select_template([
             'trax/handlers/{0}_error_{1}.md'.format(
-                self.entrypoint, exception.err_code),
+                self.entrypoint, exception.code),
             'trax/handlers/{0}_error.md'.format(self.entrypoint),
-            'trax/handlers/error_{0}.md'.format(exception.err_code),
+            'trax/handlers/error_{0}.md'.format(exception.code),
             'trax/handlers/error.md',
         ])
         context = {}
@@ -99,7 +99,7 @@ class HelpHandler(Handler):
         except IndexError:
             raise HandleError(
                 '`{0}` does not match any command'.format(arguments),
-                err_code='invalid_arg',
+                code='invalid_arg',
             )
 
         help_content = handler.get_help_content(user)
@@ -116,7 +116,7 @@ class StartTimerHandler(Handler):
     def handle(self, arguments, user):
         if not arguments:
             # missing time name
-            raise exceptions.HandleError('Please provide a valid name', err_code='missing_arg')
+            raise exceptions.HandleError('Please provide a valid name', code='missing_arg')
 
         try:
             # we try to fetch the timer group using a shortcut instead of name
@@ -129,7 +129,7 @@ class StartTimerHandler(Handler):
                 return {
                     'timer_group': t,
                 }
-            raise exceptions.HandleError('The shortcut you provided does not match any timer', err_code='invalid_arg')
+            raise exceptions.HandleError('The shortcut you provided does not match any timer', code='invalid_arg')
         except ValueError:
             pass
 
@@ -152,10 +152,19 @@ class StopTimersHandler(Handler):
 
     def handle(self, arguments, user):
         groups = user.timer_groups.all().running()
+
+        end = (
+            dateparser.parse(arguments) or
+            timezone.now())
+        tz = pytz.timezone(settings.TIME_ZONE)
+        end = end.replace(tzinfo=tz)
+
         for group in groups:
-            group.stop()
+            group.stop(end)
+
         return {
             'timer_groups': groups,
+            'end_date': end,
         }
 
 
@@ -172,8 +181,8 @@ class ListTimersHandler(Handler):
         end = end.replace(tzinfo=tz)
         end = end.replace(hour=23, minute=59, second=59, microsecond=9999)
         start = end.replace(hour=0, minute=0, second=0, microsecond=0)
-        print(start, end)
         qs = user.timer_groups.since(start, end)
+
         return {
             'timer_groups': qs,
             'date': start.date(),

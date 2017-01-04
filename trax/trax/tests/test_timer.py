@@ -95,3 +95,23 @@ class TestTimer(TestCase):
 
         self.assertGreater(timer.start_date, now)
         self.assertEqual(timer.end_date, None)
+
+    def test_cannot_stop_timer_with_end_date_smaller_than_start_date(self):
+        now = timezone.now().replace(microsecond=0)
+        start = now - datetime.timedelta(hours=2)
+        invalid = start - datetime.timedelta(hours=3)
+
+        with unittest.mock.patch('django.utils.timezone.now', return_value=start):
+            group = models.TimerGroup.objects.start('Test 1', user=self.user)
+
+        with self.assertRaises(ValidationError):
+            group.stop(invalid)
+
+    def test_timers_from_same_group_cannot_overlap(self):
+        now = timezone.now().replace(microsecond=0)
+        start = now - datetime.timedelta(hours=2)
+
+        group = models.TimerGroup.objects.start('Test 1', user=self.user)
+
+        with self.assertRaises(ValidationError):
+            group.timers.create()
