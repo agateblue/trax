@@ -39,10 +39,18 @@ class SlashCommandForm(forms.Form):
         )[0]
 
     def clean_action(self):
-        return self.cleaned_data['text'].split(' ')[0].strip()
+        try:
+            return self.cleaned_data['text'].split(' ')[0].strip()
+        except KeyError:
+            # No arguments were sent, we fallback on help
+            return 'help'
 
     def clean_arguments(self):
-        return ' '.join(self.cleaned_data['text'].split(' ')[1:]).strip()
+        try:
+            return ' '.join(self.cleaned_data['text'].split(' ')[1:]).strip()
+        except KeyError:
+            return ''
+
 
     def clean_handler(self):
         action = self.clean_action()

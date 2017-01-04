@@ -157,7 +157,11 @@ class StopTimersHandler(Handler):
             dateparser.parse(arguments) or
             timezone.now())
         tz = pytz.timezone(settings.TIME_ZONE)
-        end = end.replace(tzinfo=tz)
+        try:
+            end = tz.localize(end)
+        except ValueError:
+            # already localized
+            pass
 
         for group in groups:
             group.stop(end)
@@ -178,7 +182,11 @@ class ListTimersHandler(Handler):
             dateparser.parse(arguments) or
             timezone.now())
         tz = pytz.timezone(settings.TIME_ZONE)
-        end = end.replace(tzinfo=tz)
+        try:
+            end = tz.localize(end)
+        except ValueError:
+            # already localized
+            pass
         end = end.replace(hour=23, minute=59, second=59, microsecond=9999)
         start = end.replace(hour=0, minute=0, second=0, microsecond=0)
         qs = user.timer_groups.since(start, end)
@@ -227,7 +235,11 @@ class StatsHandler(Handler):
             timezone.now())
         r = 7
         tz = pytz.timezone(settings.TIME_ZONE)
-        end = end.replace(tzinfo=tz)
+        try:
+            end = tz.localize(end)
+        except ValueError:
+            # already localized
+            pass
         end = end.replace(hour=23, minute=59, second=59, microsecond=9999)
         start = (end - datetime.timedelta(days=r)).replace(hour=0, minute=0, second=0, microsecond=0)
         intervals = [
