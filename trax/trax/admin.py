@@ -39,3 +39,19 @@ class TimerGroupAdmin(admin.ModelAdmin):
         'name',
         'slug',
     ]
+
+
+@admin.register(models.Reminder)
+class ReminderAdmin(admin.ModelAdmin):
+    list_display = [
+        'message',
+        'user',
+        'creation_date',
+        'is_recurring',
+        'next_call',
+        'crontab',
+    ]
+    search_fields = [
+        'user__username',
+        'message',
+    ]

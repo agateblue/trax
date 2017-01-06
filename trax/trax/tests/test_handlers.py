@@ -117,3 +117,53 @@ class TestForms(TestCase):
         result = handler.handle('timezone Europe/Paris', user=user)
 
         self.assertEqual(user.preferences['global__timezone'], 'Europe/Paris')
+
+    def test_remind_handler(self):
+        handler = handlers.handlers_by_key['remind']
+        now = timezone.now()
+        with unittest.mock.patch('django.utils.timezone.now', return_value=now):
+            result = handler.handle(
+                'add "drink water" "in two hours"',
+                channel_id='test_id',
+                channel_name='test_name',
+                user=self.user)
+
+        reminder = self.user.reminders.first()
+        self.assertEqual(
+            reminder.next_call.replace(microsecond=0),
+            (now + datetime.timedelta(hours=2)).replace(microsecond=0))
+        self.assertEqual(reminder.message, 'drink water')
+        self.assertEqual(reminder.channel_id, 'test_id')
+        self.assertEqual(reminder.channel_name, 'test_name')
+
+    def test_remind_delete_handler(self):
+        reminder = models.Reminder.objects.create(
+            user=self.user,
+            crontab='30 12 * * *',
+            message='Hello, how are you ?',
+            channel_id='channel_id',
+            channel_name='channel_name',
+        )
+        handler = handlers.handlers_by_key['remind']
+        now = timezone.now()
+        with unittest.mock.patch('django.utils.timezone.now', return_value=now):
+            result = handler.handle(
+                'delete {0}'.format(reminder.pk), user=self.user)
+
+        self.assertEqual(self.user.reminders.count(), 0)
+
+    def test_remind_handler_can_provide_crontab(self):
+        handler = handlers.handlers_by_key['remind']
+        now = timezone.now()
+        with unittest.mock.patch('django.utils.timezone.now', return_value=now):
+            result = handler.handle(
+                'add "drink water" "1 1 * * *"',
+                channel_id='test_id',
+                channel_name='test_name',
+                user=self.user)
+
+        reminder = self.user.reminders.first()
+        self.assertEqual(reminder.crontab, '1 1 * * *')
+        self.assertEqual(reminder.message, 'drink water')
+        self.assertEqual(reminder.channel_id, 'test_id')
+        self.assertEqual(reminder.channel_name, 'test_name')

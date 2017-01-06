@@ -1,6 +1,10 @@
 import datetime
 import dateparser
 import pytz
+import docopt
+import shlex
+import croniter
+import cron_descriptor
 
 from django.template import loader, Context, TemplateDoesNotExist
 from django.conf import settings
@@ -14,6 +18,7 @@ from dynamic_preferences.registries import user_preferences_registry
 
 from . import models
 from . import exceptions
+from . import utils
 
 
 class Handler(object):
@@ -22,7 +27,7 @@ class Handler(object):
     def valid_for_action(self, action):
         return action == self.entrypoint or action in self.keywords.split(' ')
 
-    def handle(self, arguments, user):
+    def handle(self, arguments, user, **kwargs):
         return {}
 
     def get_help_content(self, user):
@@ -38,7 +43,7 @@ class Handler(object):
 
     def get_response_content(
             self, request, action, arguments, context, user=None):
-        t = loader.get_template('trax/handlers/{0}.md'.format(self.entrypoint))
+        t = self.get_template(request, action, arguments, context, user=user)
         context['request'] = request
         context['user'] = user
         context['action'] = action
@@ -46,6 +51,9 @@ class Handler(object):
 
         context = self.get_additional_context(context)
         return safestring.mark_safe(t.render(Context(context)).strip())
+
+    def get_template(self, request, action, arguments, context, user=None):
+        return loader.get_template('trax/handlers/{0}.md'.format(self.entrypoint))
 
     def get_exception_response_content(
             self,
@@ -82,6 +90,28 @@ class Handler(object):
         return '/<trigger> {0}'.format(self.entrypoint)
 
 
+class SubcommandHandler(Handler):
+
+    def handle(self, arguments, user, **kwargs):
+        parsed = shlex.split(arguments)
+        try:
+            args = docopt.docopt(self.usage, parsed)
+        except docopt.DocoptExit as e:
+            raise exceptions.HandleError(safestring.mark_safe(str(e)), code='invalid_arg')
+
+        subcommand = arguments.split(' ')[0]
+        f = getattr(self, 'handle_{0}'.format(subcommand))
+        r = f(args, user, **kwargs)
+        r['parsed_arguments'] = args
+        r['subcommand'] = subcommand
+        return r
+
+    def get_template(self, request, action, arguments, context, user=None):
+        return loader.get_template(
+            'trax/handlers/{0}_{1}.md'.format(
+                self.entrypoint, context['subcommand']))
+
+
 class HelpHandler(Handler):
     entrypoint = 'help'
     keywords = '? h'
@@ -92,7 +122,7 @@ class HelpHandler(Handler):
         context['handlers'] = handlers
         return context
 
-    def handle(self, arguments, user):
+    def handle(self, arguments, user, **kwargs):
         if not arguments:
             # root help
             return {}
@@ -116,7 +146,7 @@ class StartTimerHandler(Handler):
     keywords = 's begin'
     description = 'Start a timer'
 
-    def handle(self, arguments, user):
+    def handle(self, arguments, user, **kwargs):
         if not arguments:
             # missing time name
             raise exceptions.HandleError('Please provide a valid name', code='missing_arg')
@@ -153,7 +183,7 @@ class StopTimersHandler(Handler):
     keywords = 'kill'
     description = 'Stop any running timers'
 
-    def handle(self, arguments, user):
+    def handle(self, arguments, user, **kwargs):
         groups = user.timer_groups.all().running()
 
         end = (
@@ -180,7 +210,7 @@ class ListTimersHandler(Handler):
     keywords = 'ls l'
     description = 'Display today\'s timers'
 
-    def handle(self, arguments, user):
+    def handle(self, arguments, user, **kwargs):
         end = (
             dateparser.parse(arguments) or
             timezone.now())
@@ -205,7 +235,7 @@ class RestartTimersHandler(Handler):
     keywords = 're res'
     description = 'Restart the last stopped timer'
 
-    def handle(self, arguments, user):
+    def handle(self, arguments, user, **kwargs):
         timer = (
             models.Timer.objects.filter(group__user=user)
                                 .order_by('-start_date').first()
@@ -226,7 +256,7 @@ class TimeHandler(Handler):
     keywords = 'hour date datetime'
     description = 'Simply display the current date/time'
 
-    def handle(self, arguments, user):
+    def handle(self, arguments, user, **kwargs):
         tz = user.preferences['global__timezone']
         if arguments:
             if arguments not in pytz.all_timezones:
@@ -239,12 +269,37 @@ class TimeHandler(Handler):
         }
 
 
+class CrontabHandler(Handler):
+    entrypoint = 'cron'
+    keywords = 'crontab cr'
+    description = 'A simple machine to human crontab translator. See [crontab.guru](https://crontab.guru) for online helper.'
+
+    def handle(self, arguments, user, **kwargs):
+        if not arguments:
+            raise exceptions.HandleError(
+                'You need to provide a crontab expression such as `1 * 2 * *`',
+                code='missing_arg')
+            tz = arguments
+
+        try:
+            description = cron_descriptor.get_description(arguments)
+        except cron_descriptor.FormatException as e:
+            raise exceptions.HandleError(
+                '{0} is not a valid crontab expression: {1}'.format(
+                    arguments, str(e)),
+                code='invalid_arg')
+        return {
+            'description': description,
+            'crontab': arguments
+        }
+
+
 class ConfigHandler(Handler):
     entrypoint = 'config'
     keywords = 'conf c settings options'
     description = 'Access and update your settings'
 
-    def handle(self, arguments, user):
+    def handle(self, arguments, user, **kwargs):
         s = arguments.split(' ')
         setting = s[0]
         new_value = None
@@ -288,6 +343,95 @@ class ConfigHandler(Handler):
         }
 
 
+class RemindHandler(SubcommandHandler):
+    entrypoint = 'remind'
+    keywords = ''
+    description = 'Manage reminders'
+    usage = """
+        Reminder
+
+        Usage:
+            remind add <message> <when>
+            remind delete <reminder_id>...
+            remind list
+
+        Examples:
+            remind add "something important" "tomorrow at noon"
+
+        Add arguments:
+            <message>     The message that will be sent when the reminder is triggered
+            <when>        When to set the reminder. It can either be:
+
+                            * A relative hint, such as "in two hours" or "tomorrow at noon"
+                            * An absolute date/time, such as "2017-01-10 17:15"
+                            * A crontab, such as "0 12 * * *", in this case, the reminder will be recurring
+
+        Note that it you provide multiple words for these arguments,
+        you have to enclose them using double quotes:
+
+            * GOOD: remind add something tomorrow
+            * GOOD: remind add "something important" tomorrow
+            * GOOD: remind add "something important" "tomorrow at noon"
+            * BAD: remind add something tomorrow at noon
+            * BAD: remind add something important "tomorrow at noon"
+    """
+
+    def handle_add(self, args, user, **kwargs):
+        crontab = None
+        crontab_error = None
+        try:
+            croniter.croniter(args['<when>'])
+            crontab = args['<when>']
+        except (croniter.CroniterBadCronError, croniter.CroniterBadDateError) as e:
+            crontab_error = str(e)
+
+        if not crontab:
+            tz = pytz.timezone(user.preferences['global__timezone'])
+            when = utils.parse_future(args['<when>'], tz=tz)
+        else:
+            when = None
+
+        if not when and not crontab:
+            raise exceptions.HandleError(
+                'Invalid date/crontab for <when>\n'
+                'Crontab error: {0}'.format(crontab_error), code='invalid_arg')
+
+        reminder = user.reminders.create(
+            message=args['<message>'],
+            next_call=when,
+            crontab=crontab,
+            channel_id=kwargs['channel_id'],
+            channel_name=kwargs['channel_name'],
+        )
+        return {
+            'reminder': reminder
+        }
+
+    def handle_delete(self, args, user, **kwargs):
+        raw_pks = args['<reminder_id>']
+        pks = []
+
+        for t in raw_pks:
+            try:
+                pks.append(int(t))
+            except ValueError:
+                raise exceptions.HandleError(
+                    '{0} is not a valid reminder id'.format(t),
+                    code='invalid_arg')
+
+        reminders = user.reminders.filter(pk__in=pks)
+        count = reminders.count()
+        reminders.delete()
+        return {
+            'deleted': reminders,
+            'count': count,
+        }
+
+    def handle_list(self, args, user, **kwargs):
+        return {
+            'reminders': user.reminders.all().order_by('creation_date')
+        }
+
 class StatsHandler(Handler):
     entrypoint = 'stats'
     keywords = 'report reports stat rep'
@@ -299,7 +443,7 @@ class StatsHandler(Handler):
         example += ' two weeks ago'
         return example
 
-    def handle(self, arguments, user):
+    def handle(self, arguments, user, **kwargs):
         end = (
             dateparser.parse(arguments) or
             timezone.now())
@@ -356,7 +500,9 @@ handlers = [
     RestartTimersHandler(),
     StatsHandler(),
     ConfigHandler(),
+    CrontabHandler(),
     TimeHandler(),
+    RemindHandler(),
 ]
 
 handlers_by_key = {

@@ -35,7 +35,7 @@ services:
     build:
       context: .
       dockerfile: ./compose/django/Dockerfile-dev
-    command: python manage.py trax_schedule
+    command: "./compose/django/worker.sh"
     depends_on:
       - postgres
     environment:

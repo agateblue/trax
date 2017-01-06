@@ -41,7 +41,7 @@ def slash_command(request):
 
     with timezone.override(cd['user'].preferences['global__timezone']):
         try:
-            result = handler.handle(arguments, user=cd['user'])
+            result = handler.handle(**cd)
         except (exceptions.HandleError, exceptions.ValidationError) as e:
             data['text'] = handler.get_exception_response_content(
                 exception=e,
