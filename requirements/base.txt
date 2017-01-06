@@ -48,5 +48,4 @@ celery==3.1.24
 
 # Your custom requirements go here
 dateparser
-#django-dynamic-preferences
-git+https://github.com/EliotBerriot/django-dynamic-preferences.git@develop
+django-dynamic-preferences>=0.8.3,<0.9

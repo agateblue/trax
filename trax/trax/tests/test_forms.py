@@ -5,8 +5,14 @@ from trax.trax import models, forms, handlers
 from trax.users.models import User
 from django.conf import settings
 
+from dynamic_preferences.registries import global_preferences_registry
+
 
 class TestForms(TestCase):
+
+    def setUp(self):
+        self.preferences = global_preferences_registry.manager()
+        self.preferences['trax__slash_command_token'] = 'good_token'
 
     def test_slash_command_form_requires_valid_token(self):
         data = {
@@ -16,15 +22,13 @@ class TestForms(TestCase):
             'text': 'start test',
             'team_domain': 'testteam',
             'team_id': 'rdc9bgriktyx9p4kowh3dmgqyc',
-            'token': settings.SLASH_COMMAND_TOKEN,
+            'token': 'wrong_token',
             'user_id': 'testuser',
             'user_name': 'testid',
         }
 
         form = forms.SlashCommandForm(data)
-
-        with self.settings(SLASH_COMMAND_TOKEN='INVALID'):
-            form.is_valid()
+        form.is_valid()
 
         self.assertIn('token', form.errors)
 
@@ -36,7 +40,7 @@ class TestForms(TestCase):
             'text': 'start test timer',
             'team_domain': 'testteam',
             'team_id': 'rdc9bgriktyx9p4kowh3dmgqyc',
-            'token': settings.SLASH_COMMAND_TOKEN,
+            'token': 'good_token',
             'user_id': 'testid',
             'user_name': 'testuser',
         }

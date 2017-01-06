@@ -20,7 +20,7 @@ Deployment is supported using Docker and docker-compose exclusively::
     cd trax
 
     cp env.example .env
-    # edit the .env file, especially the SLASH_COMMAND_TOKEN variable
+    # edit the .env file, especially the TIME_ZONE variable
     # and the DJANGO_ALLOWED_HOSTS one
     nano .env
 
@@ -34,8 +34,20 @@ Deployment is supported using Docker and docker-compose exclusively::
     # create tables in the database
     docker-compose run django python manage.py migrate
 
-After that, your trax instance should be available at ``http://yourip/``. The URL to use
-for the slash command configuration is ``http://hourip/trax/slash``
+    # create an admin user (this will be needed to configure your tokens)
+    docker-compose run django python manage.py createsuperuser
+
+After that, your trax instance should be available at ``http://yourtraxserveriporhostname/``.
+
+You can login to the admin interface at ``http://yourtraxserveriporhostname/admin/``, using the credentials provided in the `createsuperuser` command.
 
 You can use the docker-compose.override.example.yml file to tweak the containers behaviour (after renaming it to
 docker-compose.override.yml).
+
+Integration with mattermost
+---------------------------
+
+Once deployed, you'll have to create the slash command integration in mattermost. The URL to use
+for the slash command configuration is ``http://yourtraxserveriporhostname/trax/slash``.
+
+Once done on the mattermost side, you have to login on the trax admin interface, and edit the ``slash_command`` setting in ``Global preferences`` section. Simply put the token you got from mattermost in the form and you're good to go.

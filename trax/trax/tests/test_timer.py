@@ -2,6 +2,7 @@ import unittest
 import json
 import datetime
 from test_plus.test import TestCase
+from dynamic_preferences.registries import global_preferences_registry
 
 from trax.trax import models
 from django.utils import timezone
@@ -13,6 +14,8 @@ class TestTimer(TestCase):
 
     def setUp(self):
         self.user = self.make_user()
+        self.preferences = global_preferences_registry.manager()
+        self.preferences['trax__slash_command_token'] = 'good_token'
 
     def test_can_start_timer_group(self):
         now = timezone.now()
@@ -63,7 +66,7 @@ class TestTimer(TestCase):
             'text': 'start This is my timer',
             'team_domain': 'testteam',
             'team_id': 'rdc9bgriktyx9p4kowh3dmgqyc',
-            'token': 'TESTTOKEN',
+            'token': 'good_token',
             'user_id': 'testid',
             'user_name': 'thisisme',
         }

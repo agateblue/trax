@@ -60,6 +60,3 @@ TEMPLATES[0]['OPTIONS']['loaders'] = [
         'django.template.loaders.app_directories.Loader',
     ]),
 ]
-
-
-SLASH_COMMAND_TOKEN = 'TESTTOKEN'

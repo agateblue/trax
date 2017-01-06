@@ -1,5 +1,6 @@
 from django import forms
 from django.conf import settings
+from dynamic_preferences.registries import global_preferences_registry
 
 from trax.users.models import User
 from . import handlers
@@ -25,11 +26,25 @@ class SlashCommandForm(forms.Form):
     user = forms.ModelChoiceField(required=False, queryset=User.objects.all())
 
     def clean_token(self):
-        if settings.SLASH_COMMAND_TOKEN != self.cleaned_data['token']:
+        global_preferences = global_preferences_registry.manager()
+        expected_token = global_preferences['trax__slash_command_token']
+        if expected_token != self.cleaned_data['token']:
             raise forms.ValidationError('Invalid token')
         return self.cleaned_data['token']
 
     def clean_user(self):
+        # First, we try to bind to an existing user without external ID
+        try:
+            user = User.objects.get(
+                username=self.cleaned_data['user_name'],
+                external_id__isnull=True)
+            user.external_id = self.cleaned_data['user_id']
+            user.save()
+            return user
+        except User.DoesNotExist:
+            pass
+
+        # otherwise, we fallback to simply creating a user from scratch
         return User.objects.get_or_create(
             external_id=self.cleaned_data['user_id'],
             username=self.cleaned_data['user_name'],

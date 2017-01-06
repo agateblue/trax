@@ -5,11 +5,12 @@ from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 from django.db import transaction
+from django.utils import timezone
 
+from dynamic_preferences.registries import global_preferences_registry
 from . import forms
 from . import exceptions
 from . import handlers
-from django.utils import timezone
 
 # from . import handlers
 
@@ -18,7 +19,9 @@ from django.utils import timezone
 @require_http_methods(["POST"])
 @transaction.atomic
 def slash_command(request):
-    if settings.SLASH_COMMAND_TOKEN != request.POST['token']:
+    global_preferences = global_preferences_registry.manager()
+    expected_token = global_preferences['trax__slash_command_token']
+    if expected_token != request.POST['token']:
         return JsonResponse({'text': 'Invalid token'}, status=403)
 
     form = forms.SlashCommandForm(request.POST)
