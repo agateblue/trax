@@ -117,3 +117,21 @@ class TestForms(TestCase):
         result = handler.handle('timezone Europe/Paris', user=user)
 
         self.assertEqual(user.preferences['global__timezone'], 'Europe/Paris')
+
+    def test_remind_handler(self):
+        handler = handlers.handlers_by_key['remind']
+        now = timezone.now()
+        with unittest.mock.patch('django.utils.timezone.now', return_value=now):
+            result = handler.handle(
+                'add "drink water" "in two hours"',
+                channel_id='test_id',
+                channel_name='test_name',
+                user=self.user)
+
+        reminder = self.user.reminders.first()
+        self.assertEqual(
+            reminder.next_call.replace(microsecond=0),
+            (now + datetime.timedelta(hours=2)).replace(microsecond=0))
+        self.assertEqual(reminder.message, 'drink water')
+        self.assertEqual(reminder.channel_id, 'test_id')
+        self.assertEqual(reminder.channel_name, 'test_name')

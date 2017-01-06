@@ -1,12 +1,18 @@
 import datetime
+import requests
 
-from django.db import models
+from django.db import models, transaction
 from django.utils import timezone
 from django.forms import ValidationError
 from django.utils.text import slugify
 from django.core.exceptions import ValidationError
+from dynamic_preferences.registries import global_preferences_registry
 
 from trax.users.models import User
+
+
+def get_now():
+    return timezone.now()
 
 
 class TimerGroupQuerySet(models.QuerySet):
@@ -64,7 +70,7 @@ class TimerGroupManager(models.Manager):
 class TimerGroup(models.Model):
     name = models.CharField(max_length=150)
     slug = models.CharField(max_length=150)
-    creation_date = models.DateTimeField(default=lambda: timezone.now())
+    creation_date = models.DateTimeField(default=get_now)
     description = models.TextField()
     user = models.ForeignKey(User, related_name='timer_groups')
 
@@ -124,7 +130,7 @@ class TimerQuerySet(models.QuerySet):
 
 
 class Timer(models.Model):
-    start_date = models.DateTimeField(default=lambda: timezone.now())
+    start_date = models.DateTimeField(default=get_now)
     end_date = models.DateTimeField(null=True, blank=True)
     group = models.ForeignKey(TimerGroup, related_name='timers')
 
@@ -169,3 +175,43 @@ class Timer(models.Model):
     def stop(self, end=None):
         self.end_date = end or timezone.now()
         self.save()
+
+
+class Reminder(models.Model):
+    creation_date = models.DateTimeField(default=get_now)
+    next_call = models.DateTimeField(null=True, blank=True)
+    completed_on = models.DateTimeField(null=True, blank=True)
+    crontab = models.CharField(null=True, blank=True, max_length=100)
+    user = models.ForeignKey(User, related_name='reminders')
+    message = models.TextField()
+    channel_id = models.CharField(max_length=100, null=True, blank=True)
+    channel_name = models.CharField(max_length=100, null=True, blank=True)
+
+    @transaction.atomic
+    def send(self, strict=True):
+        if strict and timezone.now() < self.next_call:
+            raise ValueError('This reminder cannot be send, it\'s too early')
+
+        request = self.prepare_request()
+        session = requests.Session()
+        response = session.send(request)
+        response.raise_for_status()
+
+        self.completed_on = timezone.now()
+        self.next_call = None
+        self.save()
+
+        return response
+
+    def prepare_request(self):
+        preferences = global_preferences_registry.manager()
+        url = preferences['trax__webhook_url']
+        data = {
+            'text': self.message,
+            'channel': self.channel_id,
+        }
+        return requests.Request(
+            'POST',
+            url=url,
+            data=data
+        ).prepare()

@@ -17,6 +17,14 @@ class SlashCommandToken(StringPreference):
     default = 'CHANGEME'
 
 
+@global_preferences_registry.register
+class WebHookUrl(StringPreference):
+    section = trax
+    name = 'webhook_url'
+    description = "The webhook URL where trax can send messages"
+    default = 'http://changeme'
+
+
 @user_preferences_registry.register
 class TimeZone(ChoicePreference):
     section = glob
