@@ -70,6 +70,9 @@ class TimerGroup(models.Model):
 
     objects = TimerGroupManager.from_queryset(TimerGroupQuerySet)()
 
+    def __str__(self):
+        return '{0} / {1}'.format(self.user, self.name)
+
     class Meta:
         unique_together = ('slug', 'user')
         ordering = ('-creation_date',)

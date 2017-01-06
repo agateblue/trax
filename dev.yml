@@ -31,6 +31,22 @@ services:
     links:
       - postgres
 
+  worker:
+    build:
+      context: .
+      dockerfile: ./compose/django/Dockerfile-dev
+    command: python manage.py trax_schedule
+    depends_on:
+      - postgres
+    environment:
+      - POSTGRES_USER=trax
+      - USE_DOCKER=yes
+    env_file: .env
+    volumes:
+      - .:/app
+    links:
+      - postgres
+
     # networks:
     #   vpcbr:
     #     ipv4_address: 10.5.0.6

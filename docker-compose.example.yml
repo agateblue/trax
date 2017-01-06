@@ -12,7 +12,7 @@ services:
       - postgres_backup:/backups
     env_file: .env
 
-  django:
+  django: &django_base
     build:
       context: .
       dockerfile: ./compose/django/Dockerfile
@@ -22,6 +22,10 @@ services:
       - redis
     command: /gunicorn.sh
     env_file: .env
+
+  worker:
+    <<: *django_base
+    command: python manage.py trax_schedule
 
   nginx:
     build: ./compose/nginx
