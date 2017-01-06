@@ -221,6 +221,24 @@ class RestartTimersHandler(Handler):
         }
 
 
+class TimeHandler(Handler):
+    entrypoint = 'time'
+    keywords = 'hour date datetime'
+    description = 'Simply display the current date/time'
+
+    def handle(self, arguments, user):
+        tz = user.preferences['global__timezone']
+        if arguments:
+            if arguments not in pytz.all_timezones:
+                raise HandleError('Invalid timezone', code='invalid_arg')
+            tz = arguments
+
+        return {
+            'current': timezone.now(),
+            'timezone': tz,
+        }
+
+
 class ConfigHandler(Handler):
     entrypoint = 'config'
     keywords = 'conf c settings options'
@@ -338,6 +356,7 @@ handlers = [
     RestartTimersHandler(),
     StatsHandler(),
     ConfigHandler(),
+    TimeHandler(),
 ]
 
 handlers_by_key = {

@@ -9,6 +9,8 @@ from django.db import transaction
 from . import forms
 from . import exceptions
 from . import handlers
+from django.utils import timezone
+
 # from . import handlers
 
 
@@ -33,29 +35,31 @@ def slash_command(request):
 
     cd = form.cleaned_data
     handler,  arguments = cd['handler'], cd['arguments']
-    try:
-        result = handler.handle(arguments, user=cd['user'])
-    except (exceptions.HandleError, exceptions.ValidationError) as e:
-        data['text'] = handler.get_exception_response_content(
-            exception=e,
-            user=cd['user'],
-            request=request,
-            action=cd['action'],
-            arguments=arguments
-        )
-        return JsonResponse(data)
-    data = {
-        'response_type': handler.response_type
-    }
-    data['text'] = handler.get_response_content(
-        request=request,
-        user=cd['user'],
-        action=cd['action'],
-        arguments=arguments,
-        context=result,)
 
-    if data['response_type'] == 'in_channel':
-        data['text'] = '*{0} invoked command "{1} {2}"*\n\n'.format(
-            cd['user'].username, cd['command'], cd['text']
-        ) + data['text']
-    return JsonResponse(data)
+    with timezone.override(cd['user'].preferences['global__timezone']):
+        try:
+            result = handler.handle(arguments, user=cd['user'])
+        except (exceptions.HandleError, exceptions.ValidationError) as e:
+            data['text'] = handler.get_exception_response_content(
+                exception=e,
+                user=cd['user'],
+                request=request,
+                action=cd['action'],
+                arguments=arguments
+            )
+            return JsonResponse(data)
+        data = {
+            'response_type': handler.response_type
+        }
+        data['text'] = handler.get_response_content(
+            request=request,
+            user=cd['user'],
+            action=cd['action'],
+            arguments=arguments,
+            context=result,)
+
+        if data['response_type'] == 'in_channel':
+            data['text'] = '*{0} invoked command "{1} {2}"*\n\n'.format(
+                cd['user'].username, cd['command'], cd['text']
+            ) + data['text']
+        return JsonResponse(data)
