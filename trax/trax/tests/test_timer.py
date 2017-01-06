@@ -107,11 +107,12 @@ class TestTimer(TestCase):
         with self.assertRaises(ValidationError):
             group.stop(invalid)
 
-    def test_timers_from_same_group_cannot_overlap(self):
+    def test_timers_cannot_overlap(self):
         now = timezone.now().replace(microsecond=0)
         start = now - datetime.timedelta(hours=2)
 
-        group = models.TimerGroup.objects.start('Test 1', user=self.user)
+        group1 = models.TimerGroup.objects.start('Test 1', user=self.user)
+        group2 = models.TimerGroup.objects.create(name='Test 2', slug='test', user=self.user)
 
         with self.assertRaises(ValidationError):
-            group.timers.create()
+            group2.timers.create()

@@ -29,6 +29,13 @@ class TimerGroupQuerySet(models.QuerySet):
             setattr(e, 'queryset_position', i + 1)
         return qs
 
+    def stop(self):
+        qs = list(self.all().running())
+        for group in qs:
+            group.stop()
+
+        return qs
+
 
 class TimerGroupManager(models.Manager):
 
@@ -41,9 +48,7 @@ class TimerGroupManager(models.Manager):
             return existing
 
         # we stop any previously running group for the same user
-        groups = user.timer_groups.all().running()
-        for group in groups:
-            group.stop()
+        user.timer_groups.stop()
 
         # then we get_or_create a new group based on the given name
         group, created = self.get_or_create(
@@ -86,7 +91,8 @@ class TimerGroup(models.Model):
         return TimerGroup.objects.filter(pk=self.pk).running().exists()
 
     def start(self):
-        return Timer.objects.create(
+        self.user.timer_groups.stop()
+        return self.timers.create(
             group=self,
         )
 
@@ -139,7 +145,7 @@ class Timer(models.Model):
             raise ValidationError('End date must be greater than start date')
 
         # we try to find any overlapping timer
-        qs = self.group.timers.all()
+        qs = Timer.objects.filter(group__user=self.group.user)
         query = models.Q(start_date__lte=self.start_date, end_date__gte=self.start_date)
 
         if self.end_date:
