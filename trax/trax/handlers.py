@@ -16,6 +16,7 @@ from dynamic_preferences.registries import user_preferences_registry
 
 from . import models
 from . import exceptions
+from . import utils
 
 
 class Handler(object):
@@ -295,53 +296,48 @@ class RemindHandler(Handler):
     keywords = ''
     description = 'Manage reminders'
     usage = """
-Reminder
+        Reminder
 
-Usage:
-    remind add <message> <when>
+        Usage:
+            remind add <message> <when>
 
-Examples:
-    remind add "something important" "tomorrow at noon"
+        Examples:
+            remind add "something important" "tomorrow at noon"
 
-Add arguments:
-    <message>     The message that will be sent when the reminder is triggered
-    <when>        When to set the reminder. It can either be:
+        Add arguments:
+            <message>     The message that will be sent when the reminder is triggered
+            <when>        When to set the reminder. It can either be:
 
-                    * A relative hint, such as "in two hours" or "tomorrow at noon"
-                    * An absolute date/time, such as "2017-01-10 17:15"
+                            * A relative hint, such as "in two hours" or "tomorrow at noon"
+                            * An absolute date/time, such as "2017-01-10 17:15"
 
-Note that it you provide multiple words for these arguments,
-you have to enclose them using double quotes:
+        Note that it you provide multiple words for these arguments,
+        you have to enclose them using double quotes:
 
-    * GOOD: remind add something tomorrow
-    * GOOD: remind add "something important" tomorrow
-    * GOOD: remind add "something important" "tomorrow at noon"
-    * BAD: remind add something tomorrow at noon
-    * BAD: remind add something important "tomorrow at noon"
+            * GOOD: remind add something tomorrow
+            * GOOD: remind add "something important" tomorrow
+            * GOOD: remind add "something important" "tomorrow at noon"
+            * BAD: remind add something tomorrow at noon
+            * BAD: remind add something important "tomorrow at noon"
     """
 
     def handle(self, arguments, user, **kwargs):
-        print(arguments)
         parsed = shlex.split(arguments)
         try:
             args = docopt.docopt(self.usage, parsed)
         except docopt.DocoptExit as e:
-            raise exceptions.HandleError(str(e), code='invalid_arg')
+            raise exceptions.HandleError(safestring.mark_safe(str(e)), code='invalid_arg')
 
         if args['add']:
-            return self.handle_add(args, user, **kwargs)
+            r = self.handle_add(args, user, **kwargs)
+            r['parsed_arguments'] = args
+            return r
 
     def handle_add(self, args, user, **kwargs):
-        when = dateparser.parse(args['<when>'])
+        tz = pytz.timezone(user.preferences['global__timezone'])
+        when = utils.parse_future(args['<when>'], tz=tz)
         if not when:
             raise exceptions.HandleError('Invalid date for <when>', code='invalid_arg')
-
-        tz = pytz.timezone(user.preferences['global__timezone'])
-        try:
-            when = tz.localize(when)
-        except ValueError:
-            # already localized
-            pass
 
         reminder = user.reminders.create(
             message=args['<message>'],

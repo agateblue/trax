@@ -1,5 +1,6 @@
 import datetime
 import requests
+import json
 
 from django.db import models, transaction
 from django.utils import timezone
@@ -177,6 +178,12 @@ class Timer(models.Model):
         self.save()
 
 
+class ReminderQuerySet(models.QuerySet):
+    def sendable(self):
+        now = timezone.now()
+        return self.filter(next_call__lte=now)
+
+
 class Reminder(models.Model):
     creation_date = models.DateTimeField(default=get_now)
     next_call = models.DateTimeField(null=True, blank=True)
@@ -186,6 +193,8 @@ class Reminder(models.Model):
     message = models.TextField()
     channel_id = models.CharField(max_length=100, null=True, blank=True)
     channel_name = models.CharField(max_length=100, null=True, blank=True)
+
+    objects = ReminderQuerySet.as_manager()
 
     @transaction.atomic
     def send(self, strict=True):
@@ -208,10 +217,10 @@ class Reminder(models.Model):
         url = preferences['trax__webhook_url']
         data = {
             'text': self.message,
-            'channel': self.channel_id,
+            'channel': self.channel_name,
         }
         return requests.Request(
             'POST',
             url=url,
-            data=data
+            data={'payload': json.dumps(data)},
         ).prepare()

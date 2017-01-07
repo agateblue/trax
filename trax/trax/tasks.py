@@ -14,3 +14,12 @@ def kill_obsolete_timers():
         candidate.stop()
 
     print('Closed %s timers' % len(candidates))
+
+
+def send_reminders():
+    candidates = models.Reminder.objects.sendable()
+
+    for reminder in candidates:
+        reminder.send()
+
+    print('Sended %s reminders' % len(candidates))

@@ -35,7 +35,7 @@ class TestTimer(TestCase):
         self.assertEqual(reminder.completed_on, None)
 
     @unittest.mock.patch('requests.Session.send')
-    def test_can_check_can_send_reminder(self, r):
+    def test__can_send_reminder(self, r):
         r.return_value = unittest.mock.Mock(status=200)
         now = timezone.now()
         one_minute = now + datetime.timedelta(minutes=1)
