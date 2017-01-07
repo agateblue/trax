@@ -1,0 +1,1 @@
+{{ count }} reminders were deleted.

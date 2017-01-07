@@ -1,12 +1,17 @@
 import datetime
 import requests
+import pytz
 import json
+import croniter
 
 from django.db import models, transaction
 from django.utils import timezone
 from django.forms import ValidationError
 from django.utils.text import slugify
 from django.core.exceptions import ValidationError
+from django.template import loader, Context
+from django.utils import safestring
+
 from dynamic_preferences.registries import global_preferences_registry
 
 from trax.users.models import User
@@ -196,6 +201,52 @@ class Reminder(models.Model):
 
     objects = ReminderQuerySet.as_manager()
 
+    @property
+    def is_recurring(self):
+        return bool(self.crontab)
+
+    def save(self, **kwargs):
+        if not self.pk and self.is_recurring:
+            self.schedule_next_call()
+
+        return super().save(**kwargs)
+
+    def schedule_next_call(self):
+        """
+        When using a recurring reminder via crontab
+        """
+        if not self.is_recurring:
+            raise ValueError('Cannot schedule next call without crontab')
+
+        if self.next_call:
+            raise ValueError('Next call is already scheduled')
+
+        self.next_call = self.get_next()
+
+    def get_next(self):
+        if not self.is_recurring:
+            raise ValueError('Not a recurring reminder')
+        return self.crontab_schedule.get_next(datetime.datetime)
+
+    def all_next(self, length=3):
+        if not self.is_recurring:
+            raise ValueError('Not a recurring reminder')
+        schedule = self.crontab_schedule
+        nexts = []
+        for i in range(length):
+            nexts.append(schedule.get_next(datetime.datetime))
+        return nexts
+
+    @property
+    def crontab_schedule(self):
+        if not self.crontab:
+            raise ValueError('Crontab is not set')
+
+        tz = pytz.timezone(self.user.preferences['global__timezone'])
+        now = timezone.now().replace(tzinfo=tz)
+
+        return croniter.croniter(self.crontab, now)
+
     @transaction.atomic
     def send(self, strict=True):
         if strict and timezone.now() < self.next_call:
@@ -208,15 +259,24 @@ class Reminder(models.Model):
 
         self.completed_on = timezone.now()
         self.next_call = None
+        if self.is_recurring:
+            self.schedule_next_call()
         self.save()
 
         return response
+
+    def render(self):
+        t = loader.get_template('trax/reminder.md')
+
+        context = {}
+        context['reminder'] = self
+        return safestring.mark_safe(t.render(Context(context)).strip())
 
     def prepare_request(self):
         preferences = global_preferences_registry.manager()
         url = preferences['trax__webhook_url']
         data = {
-            'text': self.message,
+            'text': self.render(),
             'channel': self.channel_name,
         }
         return requests.Request(

@@ -35,7 +35,7 @@ class TestTimer(TestCase):
         self.assertEqual(reminder.completed_on, None)
 
     @unittest.mock.patch('requests.Session.send')
-    def test__can_send_reminder(self, r):
+    def test_can_send_reminder(self, r):
         r.return_value = unittest.mock.Mock(status=200)
         now = timezone.now()
         one_minute = now + datetime.timedelta(minutes=1)
@@ -55,3 +55,44 @@ class TestTimer(TestCase):
 
         self.assertEqual(reminder.completed_on, one_minute)
         self.assertEqual(reminder.next_call, None)
+
+    def test_reminder_can_use_contrab_to_set_next_call(self):
+        now = timezone.now().replace(hour=12, minute=0, second=0, microsecond=0)
+        expected = now + datetime.timedelta(minutes=30)
+
+        with unittest.mock.patch('django.utils.timezone.now', return_value=now):
+
+            reminder = models.Reminder.objects.create(
+                user=self.user,
+                crontab='30 12 * * *',
+                message='Hello, how are you ?',
+                channel_id='channel_id',
+                channel_name='channel_name',
+            )
+
+        self.assertEqual(reminder.next_call, expected)
+
+    @unittest.mock.patch('requests.Session.send')
+    def test_sending_recurring_reminder_also_set_next_call(self, r):
+        r.return_value = unittest.mock.Mock(status=200)
+
+        now = timezone.now().replace(hour=12, minute=0, second=0, microsecond=0)
+        expected = now + datetime.timedelta(minutes=30)
+
+        with unittest.mock.patch('django.utils.timezone.now', return_value=now):
+
+            reminder = models.Reminder.objects.create(
+                user=self.user,
+                crontab='30 12 * * *',
+                message='Hello, how are you ?',
+                channel_id='channel_id',
+                channel_name='channel_name',
+            )
+
+        self.assertEqual(reminder.next_call, expected)
+
+        with unittest.mock.patch('django.utils.timezone.now', return_value=expected):
+            reminder.send()
+            
+        self.assertEqual(reminder.completed_on, expected)
+        self.assertEqual(reminder.next_call, expected + datetime.timedelta(days=1))

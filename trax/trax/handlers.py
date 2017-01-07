@@ -3,6 +3,7 @@ import dateparser
 import pytz
 import docopt
 import shlex
+import croniter
 
 from django.template import loader, Context, TemplateDoesNotExist
 from django.conf import settings
@@ -41,7 +42,7 @@ class Handler(object):
 
     def get_response_content(
             self, request, action, arguments, context, user=None):
-        t = loader.get_template('trax/handlers/{0}.md'.format(self.entrypoint))
+        t = self.get_template(request, action, arguments, context, user=user)
         context['request'] = request
         context['user'] = user
         context['action'] = action
@@ -49,6 +50,9 @@ class Handler(object):
 
         context = self.get_additional_context(context)
         return safestring.mark_safe(t.render(Context(context)).strip())
+
+    def get_template(self, request, action, arguments, context, user=None):
+        return loader.get_template('trax/handlers/{0}.md'.format(self.entrypoint))
 
     def get_exception_response_content(
             self,
@@ -83,6 +87,28 @@ class Handler(object):
 
     def get_example(self):
         return '/<trigger> {0}'.format(self.entrypoint)
+
+
+class SubcommandHandler(Handler):
+
+    def handle(self, arguments, user, **kwargs):
+        parsed = shlex.split(arguments)
+        try:
+            args = docopt.docopt(self.usage, parsed)
+        except docopt.DocoptExit as e:
+            raise exceptions.HandleError(safestring.mark_safe(str(e)), code='invalid_arg')
+
+        subcommand = arguments.split(' ')[0]
+        f = getattr(self, 'handle_{0}'.format(subcommand))
+        r = f(args, user, **kwargs)
+        r['parsed_arguments'] = args
+        r['subcommand'] = subcommand
+        return r
+
+    def get_template(self, request, action, arguments, context, user=None):
+        return loader.get_template(
+            'trax/handlers/{0}_{1}.md'.format(
+                self.entrypoint, context['subcommand']))
 
 
 class HelpHandler(Handler):
@@ -291,7 +317,7 @@ class ConfigHandler(Handler):
         }
 
 
-class RemindHandler(Handler):
+class RemindHandler(SubcommandHandler):
     entrypoint = 'remind'
     keywords = ''
     description = 'Manage reminders'
@@ -300,6 +326,8 @@ class RemindHandler(Handler):
 
         Usage:
             remind add <message> <when>
+            remind delete <reminder_id>...
+            remind list
 
         Examples:
             remind add "something important" "tomorrow at noon"
@@ -310,6 +338,7 @@ class RemindHandler(Handler):
 
                             * A relative hint, such as "in two hours" or "tomorrow at noon"
                             * An absolute date/time, such as "2017-01-10 17:15"
+                            * A crontab, such as "0 12 * * *", in this case, the reminder will be recurring
 
         Note that it you provide multiple words for these arguments,
         you have to enclose them using double quotes:
@@ -321,27 +350,30 @@ class RemindHandler(Handler):
             * BAD: remind add something important "tomorrow at noon"
     """
 
-    def handle(self, arguments, user, **kwargs):
-        parsed = shlex.split(arguments)
-        try:
-            args = docopt.docopt(self.usage, parsed)
-        except docopt.DocoptExit as e:
-            raise exceptions.HandleError(safestring.mark_safe(str(e)), code='invalid_arg')
-
-        if args['add']:
-            r = self.handle_add(args, user, **kwargs)
-            r['parsed_arguments'] = args
-            return r
-
     def handle_add(self, args, user, **kwargs):
-        tz = pytz.timezone(user.preferences['global__timezone'])
-        when = utils.parse_future(args['<when>'], tz=tz)
-        if not when:
-            raise exceptions.HandleError('Invalid date for <when>', code='invalid_arg')
+        crontab = None
+        crontab_error = None
+        try:
+            croniter.croniter(args['<when>'])
+            crontab = args['<when>']
+        except (croniter.CroniterBadCronError, croniter.CroniterBadDateError) as e:
+            crontab_error = str(e)
+
+        if not crontab:
+            tz = pytz.timezone(user.preferences['global__timezone'])
+            when = utils.parse_future(args['<when>'], tz=tz)
+        else:
+            when = None
+
+        if not when and not crontab:
+            raise exceptions.HandleError(
+                'Invalid date/crontab for <when>\n'
+                'Crontab error: {0}'.format(crontab_error), code='invalid_arg')
 
         reminder = user.reminders.create(
             message=args['<message>'],
             next_call=when,
+            crontab=crontab,
             channel_id=kwargs['channel_id'],
             channel_name=kwargs['channel_name'],
         )
@@ -349,6 +381,30 @@ class RemindHandler(Handler):
             'reminder': reminder
         }
 
+    def handle_delete(self, args, user, **kwargs):
+        raw_pks = args['<reminder_id>']
+        pks = []
+
+        for t in raw_pks:
+            try:
+                pks.append(int(t))
+            except ValueError:
+                raise exceptions.HandleError(
+                    '{0} is not a valid reminder id'.format(t),
+                    code='invalid_arg')
+
+        reminders = user.reminders.filter(pk__in=pks)
+        count = reminders.count()
+        reminders.delete()
+        return {
+            'deleted': reminders,
+            'count': count,
+        }
+
+    def handle_list(self, args, user, **kwargs):
+        return {
+            'reminders': user.reminders.all().order_by('creation_date')
+        }
 
 class StatsHandler(Handler):
     entrypoint = 'stats'
