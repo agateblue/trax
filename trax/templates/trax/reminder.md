@@ -1,4 +1,4 @@
-{{ reminder.message }}
+{{ reminder.message|safe }}
 {% if reminder.is_recurring %}This recurring reminder was scheduled by {{ reminder.user.username }}. Next ones are:
 
 {% for date in reminder.all_next %}- {{ date }}

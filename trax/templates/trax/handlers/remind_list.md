@@ -5,5 +5,5 @@ Your reminders are:
 
 | ID   | Message | Type | Next call |
 | ---- | ------- | ---- | --------- |{% for reminder in reminders %}
-| {{ reminder.pk }} | {{ reminder.message }} | {% if reminder.is_recurring %}Recurring (`{{ reminder.crontab }}`){% else %}One shot{% endif %} | {{ reminder.next_call }} |{% endfor %}
+| {{ reminder.pk }} | {{ reminder.message|safe }} | {% if reminder.is_recurring %}Recurring (`{{ reminder.crontab }}`){% else %}One shot{% endif %} | {{ reminder.next_call }} |{% endfor %}
 {% endif %}

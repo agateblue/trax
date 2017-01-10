@@ -1,4 +1,4 @@
-Reminder `{{ reminder.message }}` was added and will be sent next time on {{ reminder.next_call }}.
+Reminder `{{ reminder.message|safe }}` was added and will be sent next time on {{ reminder.next_call }}.
 
 {% if reminder.is_reccuring %}This is a recurring reminder with the following schedule: `{{ reminder.cron_description}}` (crontab: `{{ reminder.crontab }}`).
 
