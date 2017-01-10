@@ -242,7 +242,9 @@ class Reminder(models.Model):
         if not self.crontab:
             raise ValueError('Crontab is not set')
 
+        tz = pytz.timezone(self.user.preferences['global__timezone'])
         now = timezone.now()
+        now = now.astimezone(tz)
         return croniter.croniter(self.crontab, now)
 
     @transaction.atomic

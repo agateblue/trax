@@ -1,6 +1,7 @@
 import unittest
 import datetime
 import requests
+import pytz
 
 from test_plus.test import TestCase
 from dynamic_preferences.registries import global_preferences_registry
@@ -57,8 +58,9 @@ class TestTimer(TestCase):
         self.assertEqual(reminder.next_call, None)
 
     def test_reminder_can_use_contrab_to_set_next_call(self):
+        self.user.preferences['global__timezone'] = 'UTC'
         now = timezone.now().replace(hour=12, minute=0, second=0, microsecond=0)
-        expected = now + datetime.timedelta(minutes=30)
+        expected = (now + datetime.timedelta(minutes=30))
 
         with unittest.mock.patch('django.utils.timezone.now', return_value=now):
 
@@ -70,10 +72,12 @@ class TestTimer(TestCase):
                 channel_name='channel_name',
             )
 
+        print(reminder.next_call, expected)
         self.assertEqual(reminder.next_call, expected)
 
     @unittest.mock.patch('requests.Session.send')
     def test_sending_recurring_reminder_also_set_next_call(self, r):
+        self.user.preferences['global__timezone'] = 'UTC'
         r.return_value = unittest.mock.Mock(status=200)
 
         now = timezone.now().replace(hour=12, minute=0, second=0, microsecond=0)
@@ -93,6 +97,6 @@ class TestTimer(TestCase):
 
         with unittest.mock.patch('django.utils.timezone.now', return_value=expected):
             reminder.send()
-            
+
         self.assertEqual(reminder.completed_on, expected)
         self.assertEqual(reminder.next_call, expected + datetime.timedelta(days=1))
