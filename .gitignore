@@ -3,7 +3,7 @@ docker-compose.yml
 .DS_Store
 .AppleDouble
 .LSOverride
-
+docs/_build
 ### SublimeText ###
 # cache files for sublime text
 *.tmlanguage.cache
