@@ -6,14 +6,19 @@
 Welcome to trax's documentation!
 ====================================================================
 
+Trax is an open-source project that provides time-tracking features and aims at being
+tightly integrated with modern chat softwares such as Mattermost.
+
+
 Contents:
 
 .. toctree::
    :maxdepth: 2
 
-   install
+   features
+   user-guide
+   install-locally
    deploy
-   docker_ec2
    tests
 
 

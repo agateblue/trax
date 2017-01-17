@@ -52,13 +52,13 @@ services:
     #     ipv4_address: 10.5.0.6
 
   mattermost:
-    # the webhook url will be http://trax.com:8000/trax/slash
+    # the webhook url will be http://trax:8000/trax/slash
     build:
       context: ./compose/mattermost
     ports:
       - "8065:8065"
     links:
-      - "django:trax.com"
+      - "django:trax"
 
 #
 # networks:

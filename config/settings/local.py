@@ -19,7 +19,7 @@ from .common import *  # noqa
 DEBUG = env.bool('DJANGO_DEBUG', default=True)
 TEMPLATES[0]['OPTIONS']['debug'] = DEBUG
 
-ALLOWED_HOSTS = ['localhost', '.ngrok.io', 'trax.com']
+ALLOWED_HOSTS = ['localhost', '.ngrok.io', 'trax']
 
 # SECRET CONFIGURATION
 # ------------------------------------------------------------------------------
