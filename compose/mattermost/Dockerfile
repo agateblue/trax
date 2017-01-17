@@ -20,13 +20,13 @@ ENV MYSQL_DATABASE=mattermost_test
 WORKDIR /mm
 
 # Copy over files
-ADD https://releases.mattermost.com/3.5.1/mattermost-team-3.5.1-linux-amd64.tar.gz .
-RUN tar -zxvf ./mattermost-team-3.5.1-linux-amd64.tar.gz
-ADD config_docker.json ./mattermost/config/config_docker.json
+ADD https://releases.mattermost.com/3.6.0/mattermost-3.6.0-linux-amd64.tar.gz archive.tgz
+RUN tar -zxvf ./archive.tgz
+ADD config_docker.json ./mattermost/config/config.json
 ADD docker-entry.sh .
 
 RUN chmod +x ./docker-entry.sh
-ENTRYPOINT ./docker-entry.sh
+ENTRYPOINT ["./docker-entry.sh"]
 
 # Create default storage directory
 RUN mkdir /mm/mattermost-data
