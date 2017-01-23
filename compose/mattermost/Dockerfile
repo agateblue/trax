@@ -1,32 +1,33 @@
 # Copyright (c) 2016 Mattermost, Inc. All Rights Reserved.
 # See License.txt for license information.
-FROM debian:8
+FROM mysql:5.7
 
 # Install ca-certificates to support TLS of Mattermost v3.5
-RUN apt-get update && apt-get install -y ca-certificates
+RUN apt-get update && apt-get install -y ca-certificates curl
 
 #
 # Configure SQL
 #
 
+ENV MYSQL_ROOT_PASSWORD=mostest
+ENV MYSQL_USER=mmuser
+ENV MYSQL_PASSWORD=mostest
+ENV MYSQL_DATABASE=mattermost_test
 
 #
 # Configure Mattermost
 #
-WORKDIR /mm
 
-# Copy over files
-ADD https://releases.mattermost.com/3.6.0/mattermost-3.6.0-linux-amd64.tar.gz archive.tgz
-RUN tar -zxvf ./archive.tgz
-ADD config_docker.json ./mattermost/config/config.json
+RUN mkdir -p /mattermost/data
+VOLUME /mattermost/data
 
-WORKDIR /mm/mattermost
-ENTRYPOINT ["./bin/platform"]
+RUN curl https://releases.mattermost.com/3.6.1/mattermost-team-3.6.1-linux-amd64.tar.gz | tar -xvz
 
-# Create default storage directory
-RUN mkdir /mm/mattermost-data
-# FIX HERE
-VOLUME /mm/mattermost-data
+RUN rm /mattermost/config/config.json
 
-# Ports
+WORKDIR /mattermost
+ADD docker-entry.sh .
+RUN chmod +x ./docker-entry.sh
+ENTRYPOINT ["./docker-entry.sh"]
+
 EXPOSE 8065

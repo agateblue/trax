@@ -1,10 +1,19 @@
 {
     "ServiceSettings": {
-        "ListenAddress": ":8065",
+        "SiteURL": "",
+        "ListenAddress": ":80",
+        "ConnectionSecurity": "",
+        "TLSCertFile": "",
+        "TLSKeyFile": "",
+        "UseLetsEncrypt": false,
+        "LetsEncryptCertificateCacheFile": "./config/letsencrypt.cache",
+        "Forward80To443": false,
+        "ReadTimeout": 300,
+        "WriteTimeout": 300,
         "MaximumLoginAttempts": 10,
         "SegmentDeveloperKey": "",
         "GoogleDeveloperKey": "",
-        "EnableOAuthServiceProvider": false,
+        "EnableOAuthServiceProvider": true,
         "EnableIncomingWebhooks": true,
         "EnableOutgoingWebhooks": true,
         "EnableCommands": true,
@@ -16,6 +25,7 @@
         "EnableSecurityFixAlert": true,
         "EnableInsecureOutgoingConnections": false,
         "EnableMultifactorAuthentication": false,
+        "EnforceMultifactorAuthentication": false,
         "AllowCorsFrom": "",
         "SessionLengthWebInDays": 30,
         "SessionLengthMobileInDays": 30,
@@ -23,7 +33,9 @@
         "SessionCacheInMinutes": 10,
         "WebsocketSecurePort": 443,
         "WebsocketPort": 80,
-        "WebserverMode": "regular"
+        "WebserverMode": "gzip",
+        "EnableCustomEmoji": true,
+        "RestrictCustomEmojiCreation": "all"
     },
     "TeamSettings": {
         "SiteName": "Mattermost",
@@ -32,14 +44,24 @@
         "EnableUserCreation": true,
         "EnableOpenServer": false,
         "RestrictCreationToDomains": "",
-        "RestrictTeamNames": true,
         "EnableCustomBrand": false,
         "CustomBrandText": "",
-        "RestrictDirectMessage": "any"
+        "CustomDescriptionText": "",
+        "RestrictDirectMessage": "any",
+        "RestrictTeamInvite": "all",
+        "RestrictPublicChannelManagement": "all",
+        "RestrictPrivateChannelManagement": "all",
+        "RestrictPublicChannelCreation": "all",
+        "RestrictPrivateChannelCreation": "all",
+        "RestrictPublicChannelDeletion": "all",
+        "RestrictPrivateChannelDeletion": "all",
+        "UserStatusAwayTimeout": 300,
+        "MaxChannelsPerTeam": 2000,
+        "MaxNotificationsPerChannel": 1000000
     },
     "SqlSettings": {
         "DriverName": "mysql",
-        "DataSource": "user:password@tcp(mattermost_db:3306)/database?charset=utf8mb4,utf8",
+        "DataSource": "mmuser:mostest@tcp(127.0.0.1:3306)/mattermost_test?charset=utf8mb4,utf8",
         "DataSourceReplicas": [],
         "MaxIdleConns": 10,
         "MaxOpenConns": 10,
@@ -52,13 +74,22 @@
         "EnableFile": true,
         "FileLevel": "INFO",
         "FileFormat": "",
-        "FileLocation": ""
+        "FileLocation": "",
+        "EnableWebhookDebugging": true,
+        "EnableDiagnostics": true
+    },
+    "PasswordSettings": {
+        "MinimumLength": 5,
+        "Lowercase": false,
+        "Number": false,
+        "Uppercase": false,
+        "Symbol": false
     },
     "FileSettings": {
         "MaxFileSize": 52428800,
         "DriverName": "local",
-        "Directory": "/mm/mattermost/mattermost-data",
-        "EnablePublicLink": false,
+        "Directory": "/mattermost/data/",
+        "EnablePublicLink": true,
         "PublicLinkSalt": "A705AklYF8MFDOfcwh3I488G8vtLlVip",
         "ThumbnailWidth": 120,
         "ThumbnailHeight": 100,
@@ -70,20 +101,19 @@
         "AmazonS3AccessKeyId": "",
         "AmazonS3SecretAccessKey": "",
         "AmazonS3Bucket": "",
-        "AmazonS3Region": "",
-        "AmazonS3Endpoint": "",
-        "AmazonS3BucketEndpoint": "",
-        "AmazonS3LocationConstraint": false,
-        "AmazonS3LowercaseBucket": false
+        "AmazonS3Region": "us-east-1",
+        "AmazonS3Endpoint": "s3.amazonaws.com",
+        "AmazonS3SSL": true
     },
     "EmailSettings": {
         "EnableSignUpWithEmail": true,
         "EnableSignInWithEmail": true,
-        "EnableSignInWithUsername": true,
+        "EnableSignInWithUsername": false,
         "SendEmailNotifications": false,
         "RequireEmailVerification": false,
         "FeedbackName": "",
         "FeedbackEmail": "",
+        "FeedbackOrganization": "",
         "SMTPUsername": "",
         "SMTPPassword": "",
         "SMTPServer": "",
@@ -93,11 +123,15 @@
         "PasswordResetSalt": "vZ4DcKyVVRlKHHJpexcuXzojkE5PZ5eL",
         "SendPushNotifications": false,
         "PushNotificationServer": "",
-        "PushNotificationContents": "generic"
+        "PushNotificationContents": "generic",
+        "EnableEmailBatching": false,
+        "EmailBatchingBufferSize": 256,
+        "EmailBatchingInterval": 30
     },
     "RateLimitSettings": {
-        "EnableRateLimiter": true,
+        "Enable": false,
         "PerSec": 10,
+        "MaxBurst": 100,
         "MemoryStoreSize": 10000,
         "VaryByRemoteAddr": true,
         "VaryByHeader": ""
@@ -108,10 +142,10 @@
     },
     "SupportSettings": {
         "TermsOfServiceLink": "https://about.mattermost.com/default-terms/",
-        "PrivacyPolicyLink": "https://about.mattermost.com/default-privacy-policy/",
-        "AboutLink": "https://about.mattermost.com/default-about/",
-        "HelpLink": "https://about.mattermost.com/default-help/",
-        "ReportAProblemLink": "https://about.mattermost.com/default-report-problem/",
+        "PrivacyPolicyLink": "",
+        "AboutLink": "",
+        "HelpLink": "",
+        "ReportAProblemLink": "",
         "SupportEmail": "feedback@mattermost.com"
     },
     "GitLabSettings": {
@@ -124,6 +158,15 @@
         "UserApiEndpoint": ""
     },
     "GoogleSettings": {
+        "Enable": false,
+        "Secret": "",
+        "Id": "",
+        "Scope": "",
+        "AuthEndpoint": "",
+        "TokenEndpoint": "",
+        "UserApiEndpoint": ""
+    },
+    "Office365Settings": {
         "Enable": false,
         "Secret": "",
         "Id": "",
@@ -147,13 +190,68 @@
         "UsernameAttribute": "",
         "NicknameAttribute": "",
         "IdAttribute": "",
+        "PositionAttribute": "",
+        "SyncIntervalMinutes": 60,
         "SkipCertificateVerification": false,
         "QueryTimeout": 60,
+        "MaxPageSize": 0,
         "LoginFieldName": ""
     },
     "ComplianceSettings": {
         "Enable": false,
         "Directory": "./data/",
         "EnableDaily": false
+    },
+    "LocalizationSettings": {
+        "DefaultServerLocale": "en",
+        "DefaultClientLocale": "en",
+        "AvailableLocales": ""
+    },
+    "SamlSettings": {
+        "Enable": false,
+        "Verify": false,
+        "Encrypt": false,
+        "IdpUrl": "",
+        "IdpDescriptorUrl": "",
+        "AssertionConsumerServiceURL": "",
+        "IdpCertificateFile": "",
+        "PublicCertificateFile": "",
+        "PrivateKeyFile": "",
+        "FirstNameAttribute": "",
+        "LastNameAttribute": "",
+        "EmailAttribute": "",
+        "UsernameAttribute": "",
+        "NicknameAttribute": "",
+        "LocaleAttribute": "",
+        "PositionAttribute": "",
+        "LoginButtonText": "With SAML"
+    },
+    "NativeAppSettings": {
+        "AppDownloadLink": "https://about.mattermost.com/downloads/",
+        "AndroidAppDownloadLink": "https://about.mattermost.com/mattermost-android-app/",
+        "IosAppDownloadLink": "https://about.mattermost.com/mattermost-ios-app/"
+    },
+    "ClusterSettings": {
+        "Enable": false,
+        "InterNodeListenAddress": ":8075",
+        "InterNodeUrls": []
+    },
+    "MetricsSettings": {
+        "Enable": false,
+        "BlockProfileRate": 0,
+        "ListenAddress": ":8067"
+    },
+    "AnalyticsSettings": {
+        "MaxUsersForStatistics": 2500
+    },
+    "WebrtcSettings": {
+        "Enable": false,
+        "GatewayWebsocketUrl": "",
+        "GatewayAdminUrl": "",
+        "GatewayAdminSecret": "",
+        "StunURI": "",
+        "TurnURI": "",
+        "TurnUsername": "",
+        "TurnSharedKey": ""
     }
 }

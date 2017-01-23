@@ -19,14 +19,23 @@ Initial configuration
 Mattermost configuration
 ------------------------
 
-Head over the mattermost server and create a new team and a new user, so you can setup the trax integration.
+Once your docker containers are up, you can setup easily a test team and user:
 
-In the `system console <http://localhost:8065/admin_console/integrations/custom>`_, you will have to enable incoming webhooks and slash commands for the trax integration to work.
+.. code-block:: shell
+
+    # create the team
+    docker-compose -f dev.yml exec mattermost ./bin/platform team create --name test --display_name "test"
+
+    # create the user
+    docker-compose -f dev.yml exec mattermost ./bin/platform user create --firstname test --system_admin --email test@test --username test --password testtest
+
+    # add the user to the team
+    docker-compose -f dev.yml exec mattermost ./bin/platform team add test test
 
 After that, you have to configure two integrations:
 
 1. `A slash command <http://localhost:8065/test/integrations/commands/add>`_ , pointing to ``http://trax:8000/trax/slash``, so mattermost users can interact with trax using a slash command (I recommand ``trax`` as the trigger word but you can use something else). Copy the validation token, it will be useful
-2. (optionnal) an `incoming webhook <http://localhost:8065/test/integrations/incoming_webhooks/add>`_, so that trax can send reminders in mattermost channels. Also copy the webhook URL (but replace the domain part with ``mattermost``)
+2. (optionnal) an `incoming webhook <http://localhost:8065/test/integrations/incoming_webhooks/add>`_, so that trax can send reminders in mattermost channels. Also copy the webhook URL (but replace the domain part with ``mattermost`` and remove the port)
 
 Trax configuration
 ------------------

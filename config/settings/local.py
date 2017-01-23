@@ -36,7 +36,6 @@ EMAIL_HOST = 'localhost'
 EMAIL_BACKEND = env('DJANGO_EMAIL_BACKEND',
                     default='django.core.mail.backends.console.EmailBackend')
 
-
 # CACHING
 # ------------------------------------------------------------------------------
 CACHES = {
@@ -63,6 +62,8 @@ DEBUG_TOOLBAR_CONFIG = {
     ],
     'SHOW_TEMPLATE_CONTEXT': True,
 }
+
+AUTH_PASSWORD_VALIDATORS = []
 
 # django-extensions
 # ------------------------------------------------------------------------------

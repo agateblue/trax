@@ -1,4 +1,6 @@
 docker-compose.yml
+volumes
+
 ### OSX ###
 .DS_Store
 .AppleDouble

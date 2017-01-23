@@ -47,33 +47,14 @@ services:
     links:
       - postgres
 
-    # networks:
-    #   vpcbr:
-    #     ipv4_address: 10.5.0.6
-
-  mattermost_db:
-    # the webhook url will be http://trax:8000/trax/slash
-    image: mysql:5.7
-    environment:
-        - MYSQL_ROOT_PASSWORD=password
-        - MYSQL_USER=user
-        - MYSQL_PASSWORD=password
-        - MYSQL_DATABASE=database
-
   mattermost:
     # the webhook url will be http://trax:8000/trax/slash
     build:
-      context: ./compose/mattermost
+        context: ./compose/mattermost
     ports:
-      - "8065:8065"
+      - "8065:80"
     links:
-      - "mattermost_db"
+      - "django:trax"
 
-#
-# networks:
-#   vpcbr:
-#     driver: bridge
-#     ipam:
-#      config:
-#        - subnet: 10.5.0.0/16
-#          gateway: 10.5.0.1
+    volumes:
+      - ./compose/mattermost/config.json:/mattermost/config/config.json:rw
