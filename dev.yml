@@ -51,6 +51,15 @@ services:
     #   vpcbr:
     #     ipv4_address: 10.5.0.6
 
+  mattermost_db:
+    # the webhook url will be http://trax:8000/trax/slash
+    image: mysql:5.7
+    environment:
+        - MYSQL_ROOT_PASSWORD=password
+        - MYSQL_USER=user
+        - MYSQL_PASSWORD=password
+        - MYSQL_DATABASE=database
+
   mattermost:
     # the webhook url will be http://trax:8000/trax/slash
     build:
@@ -58,7 +67,7 @@ services:
     ports:
       - "8065:8065"
     links:
-      - "django:trax"
+      - "mattermost_db"
 
 #
 # networks:
