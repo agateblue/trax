@@ -194,9 +194,8 @@ class TestForms(TestCase):
           "text": """Timer "This is my timer" was started."""
         }
 
-        url = self.reverse('api:integrations:incoming_webhook', token='test')
         now = timezone.now()
-        response = self.client.post(url, payload)
+        response = self.client.post(integration.api_url, payload)
         json_data = json.loads(response.content.decode('utf-8'))
 
         self.assertEqual(response.status_code, 200)

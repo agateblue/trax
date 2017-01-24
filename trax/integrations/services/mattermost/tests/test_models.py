@@ -16,4 +16,4 @@ class TestModels(TestCase):
             token='test'
         )
 
-        self.assertTrue(integration.handler, handlers_registry.handler)
+        self.assertTrue(integration.handler, handlers_registry.MattermostHandler)

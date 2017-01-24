@@ -513,18 +513,18 @@ handlers_by_key = {
 
 
 @handlers_registry.register(name='mattermost')
-class handler(H):
+class MattermostHandler(H):
     def handle(self, data):
         form = forms.SlashCommandForm(data)
         data = {
             'response_type': 'ephemeral'
         }
         if not form.is_valid():
-            data['text'] = handlers.HelpHandler().get_response_content(
+            data['text'] = HelpHandler().get_response_content(
                 action='help',
                 arguments='',
                 context={})
-            data['_status_code'] = 400
+            data['_status_code'] = 200
             return data
         cd = form.cleaned_data
         handler,  arguments = cd['handler'], cd['arguments']
@@ -539,7 +539,7 @@ class handler(H):
                     action=cd['action'],
                     arguments=arguments
                 )
-                data['_status_code'] = 400
+                data['_status_code'] = 200
                 return data
             data = {
                 'response_type': handler.response_type

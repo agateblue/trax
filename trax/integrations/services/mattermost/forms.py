@@ -66,7 +66,6 @@ class SlashCommandForm(forms.Form):
         except KeyError:
             return ''
 
-
     def clean_handler(self):
         action = self.clean_action()
         try:

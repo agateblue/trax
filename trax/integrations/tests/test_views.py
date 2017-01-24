@@ -9,13 +9,10 @@ class TestModels(TestCase):
 
     def test_call_handler_from_webhook(self):
         integration = TestIncomingWebhook.objects.create(token='hello')
-        url = self.reverse(
-            'api:integrations:incoming_webhook', token='hello')
-
         payload = {
             'user': 'joe'
         }
 
-        response = self.client.post(url, payload)
+        response = self.client.post(integration.api_url, payload)
         result = json.loads(response.content.decode('utf-8'))
         self.assertEqual(result['message'], 'hello joe')

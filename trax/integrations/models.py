@@ -1,6 +1,8 @@
 import uuid
 from django.db import models
+from django.core.urlresolvers import reverse
 from polymorphic.models import PolymorphicModel
+
 from . import registries
 
 
@@ -22,3 +24,9 @@ class IncomingWebhook(PolymorphicModel):
 
     def generate_token(self):
         return uuid.uuid4().hex
+
+    @property
+    def api_url(self):
+        return reverse('api:integrations:incoming_webhook', kwargs={
+            'token': self.token
+        }) if self.token else None
