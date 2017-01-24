@@ -7,7 +7,7 @@ Test settings
 
 from .common import *  # noqa
 
-
+INSTALLED_APPS += ('trax.integrations.tests.test_integration_app',)
 # DEBUG
 # ------------------------------------------------------------------------------
 # Turn debug off so tests run faster

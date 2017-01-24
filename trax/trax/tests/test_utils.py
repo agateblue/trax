@@ -2,9 +2,7 @@ import unittest
 import datetime
 from test_plus.test import TestCase
 
-from trax.trax import models, forms, handlers
 from trax.users.models import User
-from django.conf import settings
 
 from trax.trax import utils
 

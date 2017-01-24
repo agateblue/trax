@@ -6,9 +6,8 @@ from django.conf.urls import url
 from . import views
 
 urlpatterns = [
-    url(
-        regex=r'^slash$',
-        view=views.slash_command,
-        name='slash-command'
+    url(r'^webhook/(?P<token>[\w-]{1,40})$',
+        view=views.incoming_webhook,
+        name='incoming_webhook'
     ),
 ]

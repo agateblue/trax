@@ -1,11 +1,15 @@
 import unittest
 import datetime
+import json
 
 from test_plus.test import TestCase
 from django.conf import settings
 from django.utils import timezone
 
-from trax.trax import models, forms, handlers
+from trax.trax import models
+from trax.integrations.services.mattermost import forms, handlers_registry
+from trax.integrations.services.mattermost.models import MattermostIncomingWebhook
+
 from trax.users.models import User
 
 
@@ -14,7 +18,7 @@ class TestForms(TestCase):
         self.user = self.make_user()
 
     def test_start_timer_handler(self):
-        handler = handlers.handlers_by_key['start']
+        handler = handlers_registry.handlers_by_key['start']
         arguments = 'this is my timer'
 
         now = timezone.now()
@@ -33,7 +37,7 @@ class TestForms(TestCase):
         self.assertEqual(timer.end_date, None)
 
     def test_can_start_using_an_integer_shortcut(self):
-        handler = handlers.handlers_by_key['start']
+        handler = handlers_registry.handlers_by_key['start']
         group1 = models.TimerGroup.objects.start('Test 1', user=self.user)
         group1 = models.TimerGroup.objects.start('Test 1', user=self.user)
         group2 = models.TimerGroup.objects.start('Test 2', user=self.user)
@@ -45,7 +49,7 @@ class TestForms(TestCase):
         self.assertTrue(group1.is_started)
 
     def test_stop_timer(self):
-        handler = handlers.handlers_by_key['stop']
+        handler = handlers_registry.handlers_by_key['stop']
         group = models.TimerGroup.objects.start('Test 2', user=self.user)
 
         self.assertTrue(group.is_started)
@@ -57,7 +61,7 @@ class TestForms(TestCase):
         self.assertFalse(timer.is_started)
 
     def test_can_stop_timer_in_the_past(self):
-        handler = handlers.handlers_by_key['stop']
+        handler = handlers_registry.handlers_by_key['stop']
         now = timezone.now().replace(microsecond=0)
         start = now - datetime.timedelta(hours=2)
         with unittest.mock.patch('django.utils.timezone.now', return_value=start):
@@ -76,7 +80,7 @@ class TestForms(TestCase):
         self.assertEqual(difference.seconds, 0)
 
     def test_list_timers(self):
-        handler = handlers.handlers_by_key['list']
+        handler = handlers_registry.handlers_by_key['list']
         group = models.TimerGroup.objects.start('Test 2', user=self.user)
 
         result = handler.handle('', user=self.user)
@@ -84,7 +88,7 @@ class TestForms(TestCase):
         self.assertEqual(result['timer_groups'].first(), group)
 
     def test_stats_handler(self):
-        handler = handlers.handlers_by_key['stats']
+        handler = handlers_registry.handlers_by_key['stats']
         group1 = models.TimerGroup.objects.start('Test 1', user=self.user)
         group2 = models.TimerGroup.objects.start('Test 2', user=self.user)
         empty_group = models.TimerGroup.objects.create(
@@ -100,7 +104,7 @@ class TestForms(TestCase):
         group2 = models.TimerGroup.objects.start('Test 2', user=self.user)
         group2.stop()
 
-        handler = handlers.handlers_by_key['restart']
+        handler = handlers_registry.handlers_by_key['restart']
         result = handler.handle('', user=self.user)
 
         group2.refresh_from_db()
@@ -113,13 +117,13 @@ class TestForms(TestCase):
             tz = user.preferences['global__timezone']
         self.assertEqual(tz, 'Europe/Berlin')
 
-        handler = handlers.handlers_by_key['config']
+        handler = handlers_registry.handlers_by_key['config']
         result = handler.handle('timezone Europe/Paris', user=user)
 
         self.assertEqual(user.preferences['global__timezone'], 'Europe/Paris')
 
     def test_remind_handler(self):
-        handler = handlers.handlers_by_key['remind']
+        handler = handlers_registry.handlers_by_key['remind']
         now = timezone.now()
         with unittest.mock.patch('django.utils.timezone.now', return_value=now):
             result = handler.handle(
@@ -144,7 +148,7 @@ class TestForms(TestCase):
             channel_id='channel_id',
             channel_name='channel_name',
         )
-        handler = handlers.handlers_by_key['remind']
+        handler = handlers_registry.handlers_by_key['remind']
         now = timezone.now()
         with unittest.mock.patch('django.utils.timezone.now', return_value=now):
             result = handler.handle(
@@ -153,7 +157,7 @@ class TestForms(TestCase):
         self.assertEqual(self.user.reminders.count(), 0)
 
     def test_remind_handler_can_provide_crontab(self):
-        handler = handlers.handlers_by_key['remind']
+        handler = handlers_registry.handlers_by_key['remind']
         now = timezone.now()
         with unittest.mock.patch('django.utils.timezone.now', return_value=now):
             result = handler.handle(
@@ -167,3 +171,48 @@ class TestForms(TestCase):
         self.assertEqual(reminder.message, 'drink water')
         self.assertEqual(reminder.channel_id, 'test_id')
         self.assertEqual(reminder.channel_name, 'test_name')
+
+    def test_can_start_timer_via_api_endpoint(self):
+
+        integration = MattermostIncomingWebhook.objects.create(
+            token='test'
+        )
+        payload = {
+            'channel_id': 'cniah6qa73bjjjan6mzn11f4ie',
+            'channel_name': 'town-square',
+            'command': '/trax',
+            'text': 'start This is my timer',
+            'team_domain': 'testteam',
+            'team_id': 'rdc9bgriktyx9p4kowh3dmgqyc',
+            'token': 'good_token',
+            'user_id': 'testid',
+            'user_name': 'thisisme',
+        }
+
+        expected = {
+          "response_type": "ephemeral",
+          "text": """Timer "This is my timer" was started."""
+        }
+
+        url = self.reverse('api:integrations:incoming_webhook', token='test')
+        now = timezone.now()
+        response = self.client.post(url, payload)
+        json_data = json.loads(response.content.decode('utf-8'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(json_data, expected)
+
+        user = User.objects.get(username='thisisme', external_id='testid')
+
+        self.assertFalse(user.is_active)
+
+        group = user.timer_groups.latest('id')
+
+        self.assertEqual(group.name, 'This is my timer')
+        self.assertEqual(group.slug, 'this-is-my-timer')
+        self.assertEqual(group.user, user)
+
+        timer = group.timers.first()
+
+        self.assertGreater(timer.start_date, now)
+        self.assertEqual(timer.end_date, None)

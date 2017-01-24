@@ -1,3 +1,4 @@
+import json
 import datetime
 import dateparser
 import pytz
@@ -15,10 +16,14 @@ from django.utils import safestring
 from dynamic_preferences.exceptions import NotFoundInRegistry
 from dynamic_preferences.serializers import SerializationError as DPSerializationError
 from dynamic_preferences.registries import user_preferences_registry
+from dynamic_preferences.registries import global_preferences_registry
 
-from . import models
-from . import exceptions
-from . import utils
+from trax.trax import models
+from trax.integrations import exceptions
+from trax.integrations.registries import handlers_registry, Handler as H
+from trax.trax import utils
+
+from . import forms
 
 
 class Handler(object):
@@ -42,9 +47,8 @@ class Handler(object):
         return safestring.mark_safe(t.render(Context(context)).strip())
 
     def get_response_content(
-            self, request, action, arguments, context, user=None):
-        t = self.get_template(request, action, arguments, context, user=user)
-        context['request'] = request
+            self, action, arguments, context, user=None):
+        t = self.get_template(action, arguments, context, user=user)
         context['user'] = user
         context['action'] = action
         context['arguments'] = arguments
@@ -52,13 +56,12 @@ class Handler(object):
         context = self.get_additional_context(context)
         return safestring.mark_safe(t.render(Context(context)).strip())
 
-    def get_template(self, request, action, arguments, context, user=None):
+    def get_template(self, action, arguments, context, user=None):
         return loader.get_template('trax/handlers/{0}.md'.format(self.entrypoint))
 
     def get_exception_response_content(
             self,
             exception,
-            request,
             action,
             user,
             arguments):
@@ -74,7 +77,6 @@ class Handler(object):
             'trax/handlers/error.md',
         ])
         context = {}
-        context['request'] = request
         context['action'] = action
         context['user'] = user
         context['arguments'] = arguments
@@ -106,7 +108,7 @@ class SubcommandHandler(Handler):
         r['subcommand'] = subcommand
         return r
 
-    def get_template(self, request, action, arguments, context, user=None):
+    def get_template(self, action, arguments, context, user=None):
         return loader.get_template(
             'trax/handlers/{0}_{1}.md'.format(
                 self.entrypoint, context['subcommand']))
@@ -508,3 +510,49 @@ handlers = [
 handlers_by_key = {
     h.entrypoint: h for h in handlers
 }
+
+
+@handlers_registry.register(name='mattermost')
+class handler(H):
+    def handle(self, data):
+        form = forms.SlashCommandForm(data)
+        data = {
+            'response_type': 'ephemeral'
+        }
+        if not form.is_valid():
+            data['text'] = handlers.HelpHandler().get_response_content(
+                action='help',
+                arguments='',
+                context={})
+            data['_status_code'] = 400
+            return data
+        cd = form.cleaned_data
+        handler,  arguments = cd['handler'], cd['arguments']
+
+        with timezone.override(cd['user'].preferences['global__timezone']):
+            try:
+                result = handler.handle(**cd)
+            except (exceptions.HandleError, exceptions.ValidationError) as e:
+                data['text'] = handler.get_exception_response_content(
+                    exception=e,
+                    user=cd['user'],
+                    action=cd['action'],
+                    arguments=arguments
+                )
+                data['_status_code'] = 400
+                return data
+            data = {
+                'response_type': handler.response_type
+            }
+            data['text'] = handler.get_response_content(
+                user=cd['user'],
+                action=cd['action'],
+                arguments=arguments,
+                context=result,)
+
+            if data['response_type'] == 'in_channel':
+                data['text'] = '*{0} invoked command "{1} {2}"*\n\n'.format(
+                    cd['user'].username, cd['command'], cd['text']
+                ) + data['text']
+            data['_status_code'] = 200
+            return data

@@ -8,6 +8,11 @@ from django.contrib import admin
 from django.views.generic import TemplateView
 from django.views import defaults as default_views
 
+apipatterns = [
+    url(r'^integrations/',
+        include('trax.integrations.urls', namespace='integrations')),
+
+]
 urlpatterns = [
     url(r'^$', TemplateView.as_view(template_name='pages/home.html'), name='home'),
     url(r'^about/$', TemplateView.as_view(template_name='pages/about.html'), name='about'),
@@ -18,7 +23,7 @@ urlpatterns = [
     # User management
     url(r'^users/', include('trax.users.urls', namespace='users')),
     url(r'^accounts/', include('allauth.urls')),
-    url(r'^trax/', include('trax.trax.urls', namespace='trax')),
+    url(r'^api/', include(apipatterns, namespace='api')),
 
     # Your stuff: custom urls includes go here
 

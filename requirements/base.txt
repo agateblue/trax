@@ -54,3 +54,5 @@ croniter
 requests
 docopt
 cron-descriptor
+django-polymorphic
+persisting-theory

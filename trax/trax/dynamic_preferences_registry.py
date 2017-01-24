@@ -10,14 +10,6 @@ trax = Section('trax')
 
 
 @global_preferences_registry.register
-class SlashCommandToken(StringPreference):
-    section = trax
-    name = 'slash_command_token'
-    description = "The token used to validate slash command payload"
-    default = 'CHANGEME'
-
-
-@global_preferences_registry.register
 class WebHookUrl(StringPreference):
     section = trax
     name = 'webhook_url'

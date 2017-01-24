@@ -3,7 +3,7 @@ from django.conf import settings
 from dynamic_preferences.registries import global_preferences_registry
 
 from trax.users.models import User
-from . import handlers
+from . import handlers_registry
 
 
 class SlashCommandForm(forms.Form):
@@ -24,13 +24,13 @@ class SlashCommandForm(forms.Form):
 
     # will be deduced from user id
     user = forms.ModelChoiceField(required=False, queryset=User.objects.all())
-
-    def clean_token(self):
-        global_preferences = global_preferences_registry.manager()
-        expected_token = global_preferences['trax__slash_command_token']
-        if expected_token != self.cleaned_data['token']:
-            raise forms.ValidationError('Invalid token')
-        return self.cleaned_data['token']
+    #
+    # def clean_token(self):
+    #     global_preferences = global_preferences_registry.manager()
+    #     expected_token = global_preferences['trax__slash_command_token']
+    #     if expected_token != self.cleaned_data['token']:
+    #         raise forms.ValidationError('Invalid token')
+    #     return self.cleaned_data['token']
 
     def clean_user(self):
         # First, we try to bind to an existing user without external ID
@@ -70,6 +70,6 @@ class SlashCommandForm(forms.Form):
     def clean_handler(self):
         action = self.clean_action()
         try:
-            return [h for h in handlers.handlers if h.valid_for_action(action)][0]
+            return [h for h in handlers_registry.handlers if h.valid_for_action(action)][0]
         except IndexError:
             raise forms.ValidationError('No handler found for action {0}'.format(action))

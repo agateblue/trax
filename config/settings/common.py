@@ -22,6 +22,7 @@ env.read_env()
 # ------------------------------------------------------------------------------
 DJANGO_APPS = (
     # Default Django apps:
+    'polymorphic',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -48,6 +49,8 @@ LOCAL_APPS = (
     # custom users app
     'trax.users.apps.UsersConfig',
     'trax.trax',
+    'trax.integrations.apps.IntegrationsConfig',
+    'trax.integrations.services.mattermost',
     # Your stuff: custom apps go here
 )
 
