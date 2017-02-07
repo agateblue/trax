@@ -4,14 +4,24 @@ Install locally
 To get a working local copy of the project, the recommended setup involves Docker
 and docker-compose.
 
-Assumoing you have both of these tools installed, you should be able to spin
-up a local copy of the project (and a test mattermost server to see how it works within the chat):
+Assuming you have both of these tools installed, you should be able to spin
+up a local copy of the project (and a test mattermost server to see how it works within the chat).
+
+First, create your configuration file and open it in a text editor:
+
+.. code-block:: shell
+
+    # Especially, you will have to edit the DJANGO_SETTINGS_MODULE line, to:
+    # DJANGO_SETTINGS_MODULE=config.settings.local
+    cp env.example .env
+
+Once you have edited the configuration file, you can run everything:
 
 .. code-block:: shell
 
     docker-compose -f dev.yml up
 
-This build build and launch the required containers, after that, you can access the mattermost server at http://localhost:8065 and the trax server at http://localhost:8000.
+This will build and launch the required containers, after that, you can access the mattermost server at http://localhost:8065 and the trax server at http://localhost:8000.
 
 Initial configuration
 *********************
