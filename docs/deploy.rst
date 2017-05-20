@@ -1,7 +1,11 @@
 Deployment guide
 =================
 
-Deployment is supported using Docker and docker-compose exclusively:
+
+Docker setup
+************
+
+Docker is the recommended deployment mean as it's both easier to setup and upgrade.
 
 .. code-block:: shell
 
@@ -36,6 +40,211 @@ After that, your trax instance should be available at http://serverip:8079/, unl
 You can login to the admin interface at http://serverip:8079/, using the credentials provided in the ``createsuperuser`` command.
 
 I strongly suggest you deploy a reverse proxy in front of your trax server, for example with nginx.
+
+Non-docker setup
+*********************
+
+If you want to setup Trax directly on the system without using Docker, it is still possible but it will require more work.
+
+In this part, we will assume all Trax files will be stored under ``/srv/trax/``. Update the commands accordingly if you plan to use another path.
+
+To run Trax, you will some external services for which installation is not covered here:
+
+- A Redis server
+- A PostgreSQL database server
+
+These services can be installed on the same system as Trax application server or somewhere else (in such a case, they will need to be reachable from the Trax applicaiton server).
+
+Cloning the project
+-------------------
+
+.. code-block:: shell
+
+    cd /srv
+    git clone https://github.com/EliotBerriot/trax.git
+    cd trax
+
+Install OS dependencies
+-----------------------
+
+Trax require few OS-level dependencies that are listed, for debian systems, under requirements/requirements.apt. If you're on another OS, you'll have to find corresponding packages from your package manager.
+
+Install those packages:
+
+.. code-block:: shell
+
+    sudo xargs -a requirements/requirements.apt apt-get install
+
+Install Python dependencies
+----------------------------
+
+Trax is tested under Python 3, more specifically Python 3.5 but it should work the same under older version of Python 3.
+
+.. code-block:: shell
+
+    # create a virtualenv to avoid polluting your system with Trax dependencies
+    virtualenv -p `which python3` virtualenv
+
+    # activate the virtualenvironment to ensure further commands are executed
+    # there
+    source virtualenv/bin/activate
+
+    # install dependencies
+    pip install -r requiremends/production/txt
+
+Set project environment variables
+----------------------------------
+
+Trax configuration is handled using environment variables.
+
+.. code-block:: shell
+
+    # copy the example environment file
+    cp env.example .env
+
+    # Edit the .env file
+    nano .env
+
+You'll have to tweak at least the following variables:
+
+- DJANGO_ALLOWED_HOSTS
+- DJANGO_SECRET_KEY
+- TIME_ZONE
+- DATABASE_URL
+- REDIS_URL
+
+For each one, please refer to the comments in the .env file itself to understand what value you should provide.
+
+
+Setup the database
+------------------
+
+Assuming your PostgreSQL server is up and running, and you configured the ``DATABASE_URL`` correctly in the previous step, you can now populate the database with initial tables and data:
+
+.. code-block:: shell
+
+    python manage.py migrate
+
+(you will need the database to be created before you can call this command)
+
+Generate static files
+---------------------
+
+This is required to collect images, javascript and CSS used by Trax:
+
+.. code-block:: shell
+
+    python manage.py collectstatic
+
+Create an administrator
+-----------------------
+
+This is required if you want to log in to Trax admin interface:
+
+.. code-block:: shell
+
+    python manage.py createsuperuser
+
+Check the application server runs properly
+------------------------------------------
+
+You should now be able to launch the application server:
+
+.. code-block:: shell
+
+    gunicorn config.wsgi -b 127.0.0.1:8001
+
+This would bind the server on 127.0.0.1 and port. Feel free to tweak that.
+
+Daemonize Trax
+---------------
+
+Usually, you'll want to daemonize Trax process to avoid launching them by hand.
+
+This can be done in various way, with tools such as Supervisor or Systemd. This example use two systemd configuration files.
+
+Application server file:
+
+.. code-block:: shell
+
+    # /etc/systemd/system/trax-web.service
+    [Unit]
+    Description=Trax application server
+    After=network.target
+
+    [Service]
+    WorkingDirectory=/srv/trax
+    ExecStart=/srv/trax/virtualenv/bin/gunicorn config.wsgi -b 127.0.0.1:8001
+
+    [Install]
+    WantedBy=multi-user.target
+
+Worker file:
+
+.. code-block:: shell
+
+    # /etc/systemd/system/trax-worker.service
+    [Unit]
+    Description=Trax worker
+    After=network.target
+
+    [Service]
+    WorkingDirectory=/srv/trax
+    ExecStart=/srv/trax/virtualenv/bin/python manage.py trax_schedule
+
+    [Install]
+    WantedBy=multi-user.target
+
+After that, you should enable the files and start the processes:
+
+.. code-block:: shell
+
+    systemctl enable trax-web trax-worker
+    systemctl start trax-web trax-worker
+
+And double check everything is working:
+
+.. code-block:: shell
+
+    systemctl status trax-web trax-worker
+
+Set up a reverse proxy
+-----------------------
+
+I strongly recommand proxying incoming requests through Nginx or Apache2 instead of making the application server
+directly reachable over the internet. This is also the best way to setup HTTPS on Trax.
+
+Example nginx configuration:
+
+.. code-block:: shell
+
+    # /etc/nginx/conf.d/trax.conf
+    server {
+      listen 80;
+      charset     utf-8;
+      server_name yourtraxdomain.com;
+
+      location / {
+        # checks for static file, if not found proxy to app
+        try_files $uri @proxy_to_app;
+      }
+
+      # cookiecutter-django app
+      location @proxy_to_app {
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Host $http_host;
+        proxy_redirect off;
+
+        # update this depending of the adress/port used in your setup
+        proxy_pass   http://127.0.0.1:8001;
+      }
+    }
+
+Remember to restart your nginx instance to load this new configuration:
+
+.. code-block:: shell
+
+    service nginx restart
 
 
 Initial configuration
