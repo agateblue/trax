@@ -16,7 +16,7 @@ ROOT_DIR = environ.Path(__file__) - 3  # (trax/config/settings/common.py - 3 = t
 APPS_DIR = ROOT_DIR.path('trax')
 
 env = environ.Env()
-env.read_env()
+env.read_env(str(ROOT_DIR.path('.env')))
 
 # APP CONFIGURATION
 # ------------------------------------------------------------------------------
